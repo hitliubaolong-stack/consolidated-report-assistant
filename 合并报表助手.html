@@ -1,0 +1,1851 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>合并报表专家助手</title>
+<script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700&family=Noto+Sans+SC:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --gold: #C8993A;
+  --gold-light: #E8C47A;
+  --gold-dark: #8B6520;
+  --navy: #1A2B4A;
+  --navy-light: #2A4070;
+  --bg: #F4F2EC;
+  --card: #FFFFFF;
+  --text: #1A1A1A;
+  --text-muted: #6B7280;
+  --border: #E5DDD0;
+  --red: #DC2626;
+  --green: #16A34A;
+}
+* { box-sizing: border-box; }
+body { font-family: 'Noto Sans SC', sans-serif; background: var(--bg); color: var(--text); margin: 0; }
+h1,h2,h3,h4 { font-family: 'Noto Serif SC', serif; }
+.btn-gold { background: linear-gradient(135deg, var(--gold), var(--gold-dark)); color: white; border: none; padding: 10px 24px; border-radius: 8px; font-weight: 600; cursor: pointer; transition: all .2s; }
+.btn-gold:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(200,152,58,.4); }
+.btn-gold:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+.btn-outline { background: white; color: var(--gold-dark); border: 1.5px solid var(--gold); padding: 10px 24px; border-radius: 8px; font-weight: 600; cursor: pointer; transition: all .2s; }
+.btn-outline:hover { background: #FFF9ED; }
+.input-field { border: 1.5px solid var(--border); border-radius: 8px; padding: 8px 12px; width: 100%; font-size: 14px; transition: border-color .2s; background: white; }
+.input-field:focus { outline: none; border-color: var(--gold); box-shadow: 0 0 0 3px rgba(200,152,58,.15); }
+.input-number { text-align: right; font-family: 'Courier New', monospace; }
+table { border-collapse: collapse; width: 100%; }
+th { background: var(--navy); color: white; padding: 8px 12px; text-align: left; font-size: 13px; }
+td { padding: 6px 10px; border-bottom: 1px solid var(--border); font-size: 13px; }
+tr:hover { background: #FDF9F3; }
+.number-cell { text-align: right; font-family: 'Courier New', monospace; color: var(--navy); }
+.subtotal-row { background: #F9F6F0 !important; font-weight: 600; }
+.total-row { background: var(--navy) !important; color: white; }
+.elimination-row { background: #FFF5F5; border-left: 3px solid var(--red); }
+.consolidated-row { background: #F0FFF4; border-left: 3px solid var(--green); font-weight: 600; }
+.step-card { background: var(--card); border-radius: 16px; padding: 24px; box-shadow: 0 2px 12px rgba(0,0,0,.06); border: 1px solid var(--border); }
+.step-indicator { display: flex; align-items: center; gap: 8px; }
+.step-dot { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; background: var(--border); color: var(--text-muted); }
+.step-dot.active { background: var(--gold); color: white; }
+.step-dot.done { background: var(--green); color: white; }
+.step-line { flex: 1; height: 2px; background: var(--border); }
+.step-line.done { background: var(--gold); }
+.sidebar { background: var(--navy); color: white; min-height: 100vh; padding: 24px 16px; position: sticky; top: 0; }
+.sidebar h2 { color: var(--gold-light); font-size: 18px; margin-bottom: 4px; }
+.sidebar-sub { color: rgba(255,255,255,.6); font-size: 12px; margin-bottom: 24px; }
+.nav-item { padding: 10px 14px; border-radius: 8px; cursor: pointer; font-size: 14px; display: flex; align-items: center; gap: 10px; margin-bottom: 4px; transition: background .2s; color: rgba(255,255,255,.75); }
+.nav-item:hover { background: rgba(255,255,255,.1); }
+.nav-item.active { background: rgba(200,152,58,.3); color: var(--gold-light); font-weight: 600; }
+.nav-item.done { color: rgba(255,255,255,.45); }
+.tab-btn { padding: 8px 20px; border-radius: 20px; border: 1.5px solid var(--border); background: white; cursor: pointer; font-size: 13px; font-weight: 500; transition: all .2s; }
+.tab-btn.active { background: var(--gold); color: white; border-color: var(--gold); }
+.badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+.badge-red { background: #FEE2E2; color: var(--red); }
+.badge-green { background: #DCFCE7; color: var(--green); }
+.badge-gold { background: #FEF3C7; color: #92400E; }
+.expert-card { background: linear-gradient(135deg, #1A2B4A, #2A4070); color: white; border-radius: 16px; padding: 20px; margin-bottom: 16px; }
+.expert-avatar { width: 44px; height: 44px; border-radius: 50%; background: var(--gold); display: flex; align-items: center; justify-content: center; font-size: 20px; }
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.5); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+.modal { background: white; border-radius: 16px; padding: 32px; max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto; }
+.file-drop { border: 2px dashed var(--border); border-radius: 12px; padding: 40px; text-align: center; cursor: pointer; transition: all .2s; }
+.file-drop:hover { border-color: var(--gold); background: #FFF9ED; }
+.toast { position: fixed; bottom: 24px; right: 24px; background: var(--navy); color: white; padding: 14px 24px; border-radius: 12px; font-size: 14px; z-index: 2000; box-shadow: 0 4px 20px rgba(0,0,0,.3); }
+.accordion-header { background: #F9F8F5; padding: 12px 16px; cursor: pointer; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; font-weight: 600; }
+.accordion-header:hover { background: #F0EDE6; }
+.elimination-entry { background: #FFF5F5; border: 1px solid #FCA5A5; border-radius: 8px; padding: 12px; margin-bottom: 8px; }
+.print-btn { background: var(--green); color: white; border: none; padding: 8px 16px; border-radius: 6px; font-size: 13px; cursor: pointer; }
+@media print {
+  .no-print { display: none !important; }
+  body { background: white; }
+}
+</style>
+</head>
+<body>
+<div id="app" style="display:flex; min-height:100vh;">
+  <!-- Left Sidebar -->
+  <aside class="sidebar" style="width:260px; flex-shrink:0;">
+    <div style="text-align:center; margin-bottom:24px;">
+      <div style="font-size:32px; margin-bottom:8px;">📊</div>
+      <h2>合并报表助手</h2>
+      <div class="sidebar-sub">资深财务合并报表专家</div>
+    </div>
+    <div id="nav-steps"></div>
+    <div style="margin-top:auto; padding-top:20px; border-top:1px solid rgba(255,255,255,.15);">
+      <div style="font-size:11px; color:rgba(255,255,255,.4); text-align:center;">
+        合并报表专家助手 v1.0<br>Powered by AI
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <main style="flex:1; padding:32px; overflow-y:auto;">
+    <div id="main-content"></div>
+  </main>
+</div>
+
+<!-- Toast -->
+<div id="toast" class="toast" style="display:none;"></div>
+
+<script>
+// ===== STATE MANAGEMENT =====
+const defaultState = () => ({
+  currentStep: 0,
+  companies: [
+    { id: 'p', name: '母公司', shortName: '母公司', type: 'parent', ownership: 100, equity: { shareCapital: 0, capitalReserve: 0, surplusReserve: 0, unappropriatedProfit: 0 } },
+    { id: 's1', name: '子公司A', shortName: '子公司A', type: 'subsidiary', ownership: 80, equity: { shareCapital: 0, capitalReserve: 0, surplusReserve: 0, unappropriatedProfit: 0 } },
+    { id: 's2', name: '子公司B', shortName: '子公司B', type: 'subsidiary', ownership: 100, equity: { shareCapital: 0, capitalReserve: 0, surplusReserve: 0, unappropriatedProfit: 0 } },
+  ],
+  pl: {}, // profit & loss per company
+  bs: {}, // balance sheet per company
+  cf: {}, // cash flow per company
+  equity: {}, // equity changes per company
+  ic: { // intercompany
+    sales: [],    // { from: id, to: id, amount: 0 }
+    arap: [],     // { from: id, to: id, amount: 0 }
+    dividends: [], // { from: id, to: id, amount: 0 }
+    inventory: [], // { from: id, to: id, amount: 0, unrealizedProfit: 0 }
+    fixedAsset: [], // { from: id, to: id, amount: 0 }
+  },
+  eliminations: [], // auto-generated + manual
+  consolidated: {},
+  aiExplanations: [],
+  groupName: '集团有限公司',
+  reportPeriod: '2015年',
+  balanceDate: '2015-12-31',
+});
+
+let state = defaultState();
+
+function initStatements() {
+  state.companies.forEach(c => {
+    if (!state.pl[c.id]) state.pl[c.id] = {
+      revenue: 0, COGS: 0, taxAndSurcharge: 0, sellingExpense: 0, adminExpense: 0, financeExpense: 0,
+      impairmentLoss: 0, fairValueChange: 0, investmentIncome: 0, nonOperatingIncome: 0, nonOperatingExpense: 0,
+      incomeTax: 0, netProfit: 0, priorUndistributed: 0, endingUndistributed: 0,
+      parentNetProfit: 0, minorityProfit: 0,
+      // 利润表附注
+      grossProfit: 0, operatingProfit: 0, totalProfit: 0,
+    };
+    if (!state.bs[c.id]) state.bs[c.id] = {
+      // 资产
+      monetaryFunds: 0, tradingFinancial: 0, notesReceivable: 0, accountsReceivable: 0,
+      otherReceivables: 0, prepayment: 0, inventory: 0, nonCurrentAssetDue: 0, otherCurrentAssets: 0,
+      currentAssetsTotal: 0,
+      availableFinancial: 0, heldToMaturity: 0, longTermReceivable: 0, longTermEquity: 0,
+      investmentProperty: 0, fixedAssets: 0, constructionInProgress: 0, intangibleAssets: 0,
+      goodwill: 0, deferredTax: 0, otherNonCurrentAssets: 0, nonCurrentAssetsTotal: 0,
+      assetsTotal: 0,
+      // 负债
+      shortTermBorrowing: 0, tradingFinancialLiab: 0, notesPayable: 0, accountsPayable: 0,
+      advanceReceipts: 0, payrollPayable: 0, taxPayable: 0, interestPayable: 0, dividendPayable: 0,
+      otherPayables: 0, nonCurrentLiabDue: 0, otherCurrentLiab: 0, currentLiabTotal: 0,
+      longTermBorrowing: 0, bondsPayable: 0, longTermPayable: 0, deferredTaxLiab: 0,
+      otherNonCurrentLiab: 0, nonCurrentLiabTotal: 0, liabTotal: 0,
+      // 所有者权益
+      shareCapital: 0, capitalReserve: 0, treasuryStock: 0, surplusReserve: 0,
+      unappropriatedProfit: 0, parentEquityTotal: 0, minorityInterest: 0, equityTotal: 0,
+    };
+    if (!state.cf[c.id]) state.cf[c.id] = {
+      // 经营活动
+      cashFromSales: 0, taxRefund: 0, otherOperatingCash: 0, operatingCashInflow: 0,
+      cashForGoods: 0, cashForEmployees: 0, cashForTaxes: 0, otherOperatingCashOut: 0, operatingCashOutflow: 0,
+      operatingNetCash: 0,
+      // 投资活动
+      disposalOfAssets: 0, investmentIncomeCash: 0, otherInvestingCashIn: 0, investingCashInflow: 0,
+      acquisitionOfAssets: 0, investmentPayments: 0, acquisitionOfSubsidiary: 0, otherInvestingCashOut: 0, investingCashOutflow: 0,
+      investingNetCash: 0,
+      // 筹资活动
+      absorptionInvestment: 0, borrowingsReceived: 0, otherFinancingCashIn: 0, financingCashInflow: 0,
+      debtRepayment: 0, dividendPayment: 0, financingCashOutflow: 0, financingNetCash: 0,
+      effectOfFx: 0, netIncreaseInCash: 0, beginningCash: 0, endingCash: 0,
+    };
+    if (!state.equity[c.id]) state.equity[c.id] = {
+      // 归属于母公司所有者权益
+      sc_start: 0, cr_start: 0, ts_start: 0, sr_start: 0, up_start: 0, total_start: 0,
+      netProfit: 0, otherComprehensive: 0, ownerContribution: 0, ownerDistribution: 0, internalTransfer: 0,
+      sc_end: 0, cr_end: 0, ts_end: 0, sr_end: 0, up_end: 0, parentTotal_end: 0,
+      minorityEquity_end: 0, totalEquity_end: 0,
+    };
+  });
+}
+
+// ===== NAVIGATION =====
+const STEPS = [
+  { id: 'structure', icon: '🏢', title: '公司架构设置', desc: '设置母子公司及持股比例' },
+  { id: 'statements', icon: '📋', title: '单体报表录入', desc: '录入各公司财务报表' },
+  { id: 'ic', icon: '🔄', title: '内部交易抵销', desc: '录入内部往来及交易' },
+  { id: 'elimination', icon: '⚙️', title: '抵销分录计算', desc: '自动生成抵销分录' },
+  { id: 'result', icon: '📊', title: '合并报表输出', desc: '查看合并财务报表' },
+  { id: 'template', icon: '📥', title: '模板下载/上传', desc: 'Excel模板导入导出' },
+];
+
+function renderNav() {
+  const nav = document.getElementById('nav-steps');
+  nav.innerHTML = STEPS.map((s, i) => {
+    const isActive = i === state.currentStep;
+    const isDone = i < state.currentStep;
+    return `
+      <div class="nav-item ${isActive ? 'active' : ''} ${isDone ? 'done' : ''}"
+           onclick="goToStep(${i})" style="margin-bottom:4px;">
+        <span style="font-size:18px;">${s.icon}</span>
+        <div>
+          <div style="font-size:13px; font-weight:600;">${s.title}</div>
+          <div style="font-size:11px; opacity:0.7;">${s.desc}</div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+// ===== FORMAT & UTILS =====
+const fmt = (n) => {
+  if (n === 0 || n === null || n === undefined) return '—';
+  const abs = Math.abs(n);
+  const sign = n < 0 ? '-' : '';
+  if (abs >= 1e8) return sign + (abs / 1e8).toFixed(2) + '亿';
+  if (abs >= 1e4) return sign + (abs / 1e4).toFixed(2) + '万';
+  return sign + abs.toLocaleString('zh-CN', { maximumFractionDigits: 2 });
+};
+const fmtFull = (n) => n === 0 || n === null ? '—' : n.toLocaleString('zh-CN', { maximumFractionDigits: 2 });
+const parseNum = (v) => { const n = parseFloat(String(v).replace(/,/g, '')); return isNaN(n) ? 0 : n; };
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.style.display = 'block';
+  setTimeout(() => t.style.display = 'none', 3000);
+}
+
+// ===== CONSOLIDATION ENGINE =====
+function calculateConsolidated() {
+  const subs = state.companies.filter(c => c.type === 'subsidiary');
+  const parent = state.companies.find(c => c.type === 'parent');
+  
+  // 初始化合并抵销结果
+  const result = {
+    pl: { revenue: 0, COGS: 0, taxAndSurcharge: 0, sellingExpense: 0, adminExpense: 0, financeExpense: 0,
+          impairmentLoss: 0, fairValueChange: 0, investmentIncome: 0, nonOperatingIncome: 0, nonOperatingExpense: 0,
+          incomeTax: 0, netProfit: 0, grossProfit: 0, operatingProfit: 0, totalProfit: 0,
+          parentNetProfit: 0, minorityProfit: 0 },
+    bs: { monetaryFunds: 0, tradingFinancial: 0, notesReceivable: 0, accountsReceivable: 0,
+          otherReceivables: 0, prepayment: 0, inventory: 0, nonCurrentAssetDue: 0, otherCurrentAssets: 0, currentAssetsTotal: 0,
+          availableFinancial: 0, heldToMaturity: 0, longTermReceivable: 0, longTermEquity: 0,
+          investmentProperty: 0, fixedAssets: 0, constructionInProgress: 0, intangibleAssets: 0,
+          goodwill: 0, deferredTax: 0, otherNonCurrentAssets: 0, nonCurrentAssetsTotal: 0, assetsTotal: 0,
+          shortTermBorrowing: 0, tradingFinancialLiab: 0, notesPayable: 0, accountsPayable: 0,
+          advanceReceipts: 0, payrollPayable: 0, taxPayable: 0, interestPayable: 0, dividendPayable: 0,
+          otherPayables: 0, nonCurrentLiabDue: 0, otherCurrentLiab: 0, currentLiabTotal: 0,
+          longTermBorrowing: 0, bondsPayable: 0, longTermPayable: 0, deferredTaxLiab: 0,
+          otherNonCurrentLiab: 0, nonCurrentLiabTotal: 0, liabTotal: 0,
+          shareCapital: 0, capitalReserve: 0, treasuryStock: 0, surplusReserve: 0,
+          unappropriatedProfit: 0, parentEquityTotal: 0, minorityInterest: 0, equityTotal: 0 },
+    cf: { operatingNetCash: 0, investingNetCash: 0, financingNetCash: 0, effectOfFx: 0, netIncreaseInCash: 0, beginningCash: 0, endingCash: 0 },
+  };
+
+  const explanations = [];
+
+  // 1. 汇总所有公司单体报表
+  state.companies.forEach(c => {
+    const pl = state.pl[c.id] || {};
+    const bs = state.bs[c.id] || {};
+    const cf = state.cf[c.id] || {};
+    const pct = c.ownership / 100;
+    const isSub = c.type === 'subsidiary';
+    const isMinority = isSub && c.ownership < 100;
+
+    // P&L aggregation
+    Object.keys(pl).forEach(k => {
+      if (result.pl[k] !== undefined) {
+        if (isSub && (k === 'netProfit' || k === 'parentNetProfit' || k === 'minorityProfit')) return;
+        result.pl[k] += (pl[k] || 0);
+      }
+    });
+
+    // Balance Sheet - subtract parent's investment in subsidiaries from BS
+    Object.keys(bs).forEach(k => {
+      if (result.bs[k] !== undefined) {
+        result.bs[k] += (bs[k] || 0);
+      }
+    });
+
+    // Cash Flow aggregation
+    Object.keys(cf).forEach(k => {
+      if (result.cf[k] !== undefined) {
+        result.cf[k] += (cf[k] || 0);
+      }
+    });
+  });
+
+  // 2. 内部销售抵销
+  let icSalesTotal = 0;
+  state.ic.sales.forEach(tx => {
+    const amt = parseNum(tx.amount);
+    icSalesTotal += amt;
+    explanations.push({
+      type: '内部销售抵销', detail: `内部销售 ¥${fmtFull(amt)}：借记营业收入，贷记营业成本（含期末未实现利润 ¥${fmtFull(amt * 0.3)}）`,
+      dr: '营业收入', drAmt: amt, cr: '营业成本', crAmt: amt, note: `发生在 ${state.companies.find(c=>c.id===tx.from)?.name || tx.from} → ${state.companies.find(c=>c.id===tx.to)?.name || tx.to}`
+    });
+  });
+  result.pl.revenue -= icSalesTotal;
+  result.pl.COGS -= icSalesTotal;
+
+  // 未实现内部利润（假设30%留在存货）
+  const unrealizedProfit = icSalesTotal * 0.3;
+  result.pl.COGS += unrealizedProfit;
+  result.bs.inventory += unrealizedProfit;
+  if (icSalesTotal > 0) {
+    explanations.push({
+      type: '未实现内部利润', detail: `期末存货中未实现内部利润 ¥${fmtFull(unrealizedProfit)}：借记存货，贷记营业成本`,
+      dr: '存货', drAmt: unrealizedProfit, cr: '营业成本', crAmt: unrealizedProfit
+    });
+  }
+
+  // 3. 内部应收/应付账款抵销
+  let icArapTotal = 0;
+  state.ic.arap.forEach(tx => {
+    const amt = parseNum(tx.amount);
+    icArapTotal += amt;
+    const fromCo = state.companies.find(c => c.id === tx.from);
+    explanations.push({
+      type: '内部往来抵销', detail: `内部应收/应付 ¥${fmtFull(amt)}：借记应付账款，贷记应收账款`,
+      dr: '应付账款', drAmt: amt, cr: '应收账款', crAmt: amt,
+      note: `发生在 ${fromCo?.name || tx.from} 与 ${state.companies.find(c=>c.id===tx.to)?.name || tx.to} 之间`
+    });
+  });
+  result.bs.accountsReceivable -= icArapTotal;
+  result.bs.accountsPayable -= icArapTotal;
+
+  // 4. 内部股利分配抵销
+  let icDividendsTotal = 0;
+  state.ic.dividends.forEach(tx => {
+    const amt = parseNum(tx.amount);
+    icDividendsTotal += amt;
+    const fromCo = state.companies.find(c => c.id === tx.from);
+    explanations.push({
+      type: '内部股利分配抵销', detail: `内部股利 ¥${fmtFull(amt)}：子公司宣告股利全额抵消`,
+      dr: '应付股利', drAmt: amt, cr: '投资收益', crAmt: amt,
+      note: `${fromCo?.name || tx.from} 宣告股利分配`
+    });
+  });
+
+  // 5. 投资与权益抵销（核心抵销分录）
+  subs.forEach(sub => {
+    const bs = state.bs[sub.id] || {};
+    const ownership = sub.ownership / 100;
+    const minorityOwnership = 1 - ownership;
+    
+    const subEquity = (bs.shareCapital || 0) + (bs.capitalReserve || 0) + (bs.surplusReserve || 0) + (bs.unappropriatedProfit || 0);
+    const parentInvestment = subEquity * ownership; // 简化计算
+    const minorityEquity = subEquity * minorityOwnership;
+
+    // 从BS中减去母公司的长期股权投资
+    if (result.bs.longTermEquity) result.bs.longTermEquity -= parentInvestment;
+
+    if (parentInvestment > 0 || subEquity > 0) {
+      explanations.push({
+        type: '投资与权益抵销', detail: `子公司 ${sub.name}（持股${sub.ownership}%）：抵销母公司长期股权投资与子公司净资产`,
+        dr: '股本/资本公积/盈余公积/未分配利润', drAmt: subEquity,
+        cr: '长期股权投资', crAmt: parentInvestment,
+        cr2: '少数股东权益', crAmt2: minorityEquity,
+        note: `母公司持股${sub.ownership}%，少数股东持股${(100-sub.ownership)}%`
+      });
+    }
+
+    // 少数股东权益
+    result.bs.minorityInterest += minorityEquity;
+
+    // 少数股东损益
+    const subNetProfit = parseNum(bs.parentNetProfit || state.pl[sub.id]?.netProfit || 0);
+    const minorityNetProfit = subNetProfit * minorityOwnership;
+    result.pl.minorityProfit += minorityNetProfit;
+    result.pl.parentNetProfit += (subNetProfit * ownership);
+    if (result.pl.netProfit !== undefined) {
+      result.pl.netProfit -= subNetProfit;
+      result.pl.netProfit += subNetProfit * ownership;
+    }
+  });
+
+  // 6. 计算衍生指标
+  result.pl.grossProfit = result.pl.revenue - result.pl.COGS;
+  result.pl.operatingProfit = result.pl.grossProfit - result.pl.taxAndSurcharge - result.pl.sellingExpense - result.pl.adminExpense - result.pl.financeExpense - result.pl.impairmentLoss + result.pl.fairValueChange + result.pl.investmentIncome;
+  result.pl.totalProfit = result.pl.operatingProfit + result.pl.nonOperatingIncome - result.pl.nonOperatingExpense;
+  result.pl.netProfit = result.pl.totalProfit - result.pl.incomeTax;
+
+  // BS总计
+  result.bs.currentAssetsTotal = (result.bs.monetaryFunds||0) + (result.bs.accountsReceivable||0) + (result.bs.otherReceivables||0) + (result.bs.prepayment||0) + (result.bs.inventory||0) + (result.bs.otherCurrentAssets||0);
+  result.bs.nonCurrentAssetsTotal = (result.bs.longTermEquity||0) + (result.bs.fixedAssets||0) + (result.bs.intangibleAssets||0) + (result.bs.deferredTax||0);
+  result.bs.assetsTotal = result.bs.currentAssetsTotal + result.bs.nonCurrentAssetsTotal;
+  result.bs.currentLiabTotal = (result.bs.accountsPayable||0) + (result.bs.shortTermBorrowing||0) + (result.bs.payrollPayable||0) + (result.bs.taxPayable||0) + (result.bs.otherPayables||0);
+  result.bs.nonCurrentLiabTotal = (result.bs.longTermBorrowing||0);
+  result.bs.liabTotal = result.bs.currentLiabTotal + result.bs.nonCurrentLiabTotal;
+  result.bs.parentEquityTotal = (result.bs.shareCapital||0) + (result.bs.capitalReserve||0) + (result.bs.surplusReserve||0) + (result.bs.unappropriatedProfit||0);
+  result.bs.equityTotal = result.bs.parentEquityTotal + result.bs.minorityInterest;
+
+  // P&L 净利润归属
+  if (result.pl.parentNetProfit === 0) {
+    result.pl.parentNetProfit = result.pl.netProfit;
+    result.pl.minorityProfit = 0;
+  }
+
+  state.consolidated = result;
+  state.aiExplanations = explanations;
+  return result;
+}
+
+// ===== AI EXPERT ANSWER =====
+const expertAnswers = {
+  investment_elimination: `【投资与权益抵销分录】是合并报表最核心的分录。
+
+**原理**：母公司对子公司的"长期股权投资"在母公司个别报表中是资产，在合并报表中需要消除；同时子公司的"股本/资本公积/盈余公积/未分配利润"也需要消除。
+
+**标准抵销分录**：
+① 借：股本（子公司期末数）
+　　资本公积（子公司期末数）
+　　其他综合收益（如有）
+　　盈余公积（子公司期末数）
+　　未分配利润（子公司期末数）
+　贷：长期股权投资（母公司投资成本）
+　　　少数股东权益（子公司净资产×少数股权比例）
+
+② 少数股东损益确认：
+　　借：少数股东损益
+　　　贷：少数股东权益分配
+
+**少数股权比例** = 100% - 母公司持股比例`,
+  ic_sales_elimination: `【内部销售抵销分录】
+
+**原理**：母子公司之间的销售交易，在个别报表中都已确认了收入和成本，但从集团角度看这只是内部调拨，并不形成真正的外部收入。
+
+**标准抵销分录**：
+① 完全抵销（期末无未实现利润）：
+　　借：营业收入（内部销售全额）
+　　　贷：营业成本（内部销售全额）
+
+② 若期末存货中包含未实现利润（内部买方未对外售出）：
+　　借：营业收入
+　　　贷：营业成本
+　　　　存货（未实现内部利润）`,
+  minority_interest: `【少数股东权益与少数股东损益】
+
+**少数股东权益（MNI）** = 子公司净资产 × 少数股东持股比例
+　　= 子公司净资产 × (100% - 母公司持股比例%)
+
+**少数股东损益（MIP）** = 子公司净利润 × 少数股东持股比例
+
+**特别提示**：
+- 子公司为全资子公司时，少数股东权益=0
+- 在合并利润表中，净利润需拆分：
+　　归属于母公司所有者的净利润 = 子公司净利润 × 母公司持股比例
+　　少数股东损益 = 子公司净利润 × 少数股权比例
+- 少数股东权益在资产负债表中"所有者权益"部分单独列示，列在"归属于母公司所有者权益"之后`,
+  bs_structure: `【合并资产负债表结构】
+
+**资产**：
+├── 流动资产：货币资金、交易性金融资产、应收账款、存货等
+├── 非流动资产：长期股权投资（抵销后余额）、固定资产、无形资产、商誉（合并溢价形成）、递延所得税资产等
+
+**负债**：各项负债直接加总，无需抵销
+
+**所有者权益**：
+├── 归属于母公司所有者权益合计
+│　　├── 实收资本（或股本）
+│　　├── 资本公积
+│　　├── 盈余公积
+│　　├── 未分配利润
+│　　└── 其他综合收益
+└── 少数股东权益
+
+**平衡公式**：资产总计 = 负债合计 + 归属于母公司所有者权益 + 少数股东权益`,
+  pl_structure: `【合并利润表结构】
+
+**利润来源构成**：
+- 合并利润表中的收入、成本、费用 = 各公司单体报表代数相加
+- 再减去内部交易抵销金额
+- 减去未实现内部利润
+
+**净利润归属**：
+1. **归属于母公司所有者的净利润** = 母公司净利润 + Σ(各子公司净利润 × 母公司持股比例)
+2. **少数股东损益** = Σ(各子公司净利润 × 少数股东持股比例)
+
+**特别项目**：
+- 母子公司间的利息收入/支出需抵销
+- 内部投资收益（母公司个别报表）需抵销，替换为集团视角的利润
+- 商誉减值测试产生的资产减值损失纳入合并报表`,
+  template_guide: `【Excel模板填写说明】
+
+**第一步：模板下载**
+点击"下载Excel模板"，系统会生成包含以下sheet的模板文件：
+- 公司信息表（录入母子公司名称、持股比例）
+- 资产负债表（N1/N2/N3对应各公司）
+- 利润表
+- 现金流量表
+- 内部交易表（录入内部往来、内部销售等）
+
+**第二步：按模板格式填入数据**
+- 黄色单元格为可填写区域
+- 数字格式：正数填入，负数在前面加负号或用括号表示
+- 公司名称必须与模板一致
+
+**第三步：上传文件**
+- 点击"上传已填写的Excel"
+- 系统自动解析数据
+- 确认解析结果后，点击"导入到系统"`,
+};
+
+// ===== STEP 0: Company Structure =====
+function renderStep0() {
+  const parent = state.companies.find(c => c.type === 'parent');
+  const subs = state.companies.filter(c => c.type === 'subsidiary');
+  return `
+    <div class="step-card" style="max-width:900px;">
+      <h2 style="font-size:22px; color:var(--navy); margin-bottom:4px;">🏢 公司架构设置</h2>
+      <p style="color:var(--text-muted); margin-bottom:24px;">设置合并报表范围内的母公司和子公司结构，包括持股比例和公司基本信息</p>
+
+      <div class="expert-card" style="margin-bottom:24px;">
+        <div style="display:flex; gap:12px; align-items:flex-start;">
+          <div class="expert-avatar">👔</div>
+          <div>
+            <div style="font-weight:700; margin-bottom:6px;">💡 合并报表专家提示</div>
+            <div style="font-size:13px; line-height:1.8; opacity:0.9;">
+              合并财务报表的编制范围以"控制"为基础。母公司对子公司的持股比例决定了少数股东权益和少数股东损益的金额。<br>
+              <strong>持股比例 = 母公司对子公司的表决权比例</strong>，这决定了子公司净利润中归属于母公司的部分。
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:24px;">
+        <div>
+          <h3 style="font-size:15px; color:var(--navy); margin-bottom:12px;">📌 集团基本信息</h3>
+          <div style="display:flex; flex-direction:column; gap:12px;">
+            <div>
+              <label style="font-size:12px; color:var(--text-muted); margin-bottom:4px; display:block;">集团名称</label>
+              <input class="input-field" value="${state.groupName}" onchange="state.groupName=this.value; render()">
+            </div>
+            <div>
+              <label style="font-size:12px; color:var(--text-muted); margin-bottom:4px; display:block;">报表期间</label>
+              <input class="input-field" value="${state.reportPeriod}" onchange="state.reportPeriod=this.value; render()">
+            </div>
+            <div>
+              <label style="font-size:12px; color:var(--text-muted); margin-bottom:4px; display:block;">资产负债表日</label>
+              <input class="input-field" type="date" value="${state.balanceDate}" onchange="state.balanceDate=this.value; render()">
+            </div>
+          </div>
+        </div>
+        <div>
+          <h3 style="font-size:15px; color:var(--navy); margin-bottom:12px;">🏛️ 母公司信息</h3>
+          ${renderCompanyCard(parent)}
+        </div>
+      </div>
+
+      <h3 style="font-size:15px; color:var(--navy); margin:24px 0 12px;">🏭 子公司列表 <span class="badge badge-gold">${subs.length} 家</span></h3>
+      <div style="display:flex; flex-direction:column; gap:12px;">
+        ${subs.map(sub => renderCompanyCard(sub)).join('')}
+      </div>
+
+      <div style="margin-top:20px; display:flex; gap:12px;">
+        <button class="btn-outline" onclick="addSubsidiary()">+ 添加子公司</button>
+        <button class="btn-gold" onclick="goToStep(1)">下一步：录入单体报表 →</button>
+      </div>
+    </div>
+  `;
+}
+
+function renderCompanyCard(c) {
+  return `
+    <div style="border:1.5px solid var(--border); border-radius:12px; padding:16px; background:white;">
+      <div style="display:grid; grid-template-columns:auto 1fr 1fr auto; gap:10px; align-items:center;">
+        <div style="width:40px; height:40px; border-radius:8px; background:${c.type==='parent'?'#EEF2FF':'#FEF3C7'}; display:flex; align-items:center; justify-content:center; font-size:20px;">
+          ${c.type==='parent'?'🏛️':'🏭'}
+        </div>
+        <div>
+          <input class="input-field" style="font-weight:600;" value="${c.name}" placeholder="公司名称" 
+                 onchange="state.companies.find(x=>x.id==='${c.id}').name=this.value; render()">
+        </div>
+        <div>
+          <input class="input-field" style="text-align:center;" value="${c.ownership}" placeholder="持股%" type="number" min="0" max="100"
+                 onchange="state.companies.find(x=>x.id==='${c.id}').ownership=parseFloat(this.value)||0; render()">
+        </div>
+        <div style="font-size:12px; color:var(--text-muted);">
+          ${c.type==='parent'?'母公司':'子公司'}
+        </div>
+      </div>
+      ${c.type==='subsidiary' ? `
+      <div style="margin-top:10px; padding-top:10px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; gap:8px;">
+        <button style="color:var(--red); background:none; border:none; cursor:pointer; font-size:12px;" onclick="removeCompany('${c.id}')">🗑️ 删除</button>
+      </div>` : ''}
+    </div>
+  `;
+}
+
+function addSubsidiary() {
+  const id = 's' + Date.now();
+  state.companies.push({
+    id, name: `子公司${state.companies.filter(c=>c.type==='subsidiary').length+1}`,
+    shortName: '', type: 'subsidiary', ownership: 80,
+    equity: { shareCapital: 0, capitalReserve: 0, surplusReserve: 0, unappropriatedProfit: 0 }
+  });
+  initStatements();
+  render();
+}
+
+function removeCompany(id) {
+  const c = state.companies.find(x => x.id === id);
+  if (!c || c.type === 'parent') return;
+  state.companies = state.companies.filter(x => x.id !== id);
+  delete state.pl[id];
+  delete state.bs[id];
+  delete state.cf[id];
+  delete state.equity[id];
+  render();
+}
+
+// ===== STEP 1: Financial Statements =====
+function renderStep1() {
+  return `
+    <div class="step-card">
+      <h2 style="font-size:22px; color:var(--navy); margin-bottom:4px;">📋 单体报表录入</h2>
+      <p style="color:var(--text-muted); margin-bottom:20px;">录入各公司的资产负债表、利润表、现金流量表数据（单位：元）</p>
+
+      <div style="display:flex; gap:8px; margin-bottom:20px; flex-wrap:wrap;">
+        ${state.companies.map(c => `
+          <button class="tab-btn ${state._activeCompany === c.id ? 'active' : ''}" onclick="state._activeCompany='${c.id}'; render()">
+            ${c.type === 'parent' ? '🏛️' : '🏭'} ${c.name}
+          </button>
+        `).join('')}
+      </div>
+      ${state._activeCompany ? renderStatementForms(state._activeCompany) : '<div style="color:var(--text-muted); text-align:center; padding:40px;">请选择一家公司录入报表数据</div>'}
+    </div>
+  `;
+}
+
+function renderStatementForms(companyId) {
+  const c = state.companies.find(x => x.id === companyId);
+  const pl = state.pl[companyId] || {};
+  const bs = state.bs[companyId] || {};
+  const cf = state.cf[companyId] || {};
+
+  return `
+    <div style="margin-bottom:20px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+        <span class="badge ${c.type==='parent'?'badge-gold':'badge-red'}">${c.type==='parent'?'母公司':'子公司（持股'+c.ownership+'%）'}</span>
+        <button class="btn-outline" style="padding:6px 16px; font-size:12px;" onclick="autoFillSample('${companyId}')">🤖 填充示例数据</button>
+      </div>
+
+      <!-- Tabs for different statements -->
+      <div style="display:flex; gap:8px; margin-bottom:16px;">
+        <button class="tab-btn ${state._statementTab === 'bs' || !state._statementTab ? 'active' : ''}" onclick="state._statementTab='bs'; render()">📊 资产负债表</button>
+        <button class="tab-btn ${state._statementTab === 'pl' ? 'active' : ''}" onclick="state._statementTab='pl'; render()">📈 利润表</button>
+        <button class="tab-btn ${state._statementTab === 'cf' ? 'active' : ''}" onclick="state._statementTab='cf'; render()">💰 现金流量表</button>
+      </div>
+
+      ${state._statementTab === 'bs' || !state._statementTab ? renderBSTable(companyId) : ''}
+      ${state._statementTab === 'pl' ? renderPLTable(companyId) : ''}
+      ${state._statementTab === 'cf' ? renderCFTable(companyId) : ''}
+    </div>
+
+    <div style="display:flex; justify-content:space-between; margin-top:20px;">
+      <button class="btn-outline" onclick="goToStep(0)">← 上一步</button>
+      <button class="btn-gold" onclick="goToStep(2)">下一步：内部交易抵销 →</button>
+    </div>
+  `;
+}
+
+function bsField(companyId, key, label) {
+  const val = state.bs[companyId]?.[key] ?? 0;
+  return `
+    <tr>
+      <td style="padding-left:24px;">${label}</td>
+      <td class="number-cell"><input class="input-field input-number" type="number" value="${val || ''}" placeholder="0"
+             onchange="if(!state.bs['${companyId}'])state.bs['${companyId}']={}; state.bs['${companyId}']['${key}']=parseFloat(this.value)||0; render()"></td>
+      <td class="number-cell"><input class="input-field input-number" type="number" value="${val || ''}" placeholder="0"
+             onchange="if(!state.bs['${companyId}'])state.bs['${companyId}']={}; state.bs['${companyId}']['${key}']=parseFloat(this.value)||0; render()" style="background:#F9F8F5;"></td>
+    </tr>`;
+}
+
+function renderBSTable(companyId) {
+  const bs = state.bs[companyId] || {};
+  const set = (key, val) => {
+    if (!state.bs[companyId]) state.bs[companyId] = {};
+    state.bs[companyId][key] = parseFloat(val) || 0;
+  };
+  const num = (key) => state.bs[companyId]?.[key] ?? 0;
+
+  return `
+    <div style="overflow-x:auto;">
+    <table>
+      <thead><tr><th style="width:40%;">资产负债项目</th><th style="text-align:right;">期末余额</th><th style="text-align:right; background:#2A3F60;">年初余额</th></tr></thead>
+      <tbody>
+        <tr style="background:#EEF2FF; font-weight:700;"><td colspan="3">📦 流动资产</td></tr>
+        ${[
+          ['monetaryFunds','货币资金'],['tradingFinancial','交易性金融资产'],['notesReceivable','应收票据'],
+          ['accountsReceivable','应收账款'],['otherReceivables','其他应收款'],['prepayment','预付款项'],
+          ['inventory','存货'],['nonCurrentAssetDue','一年内到期的非流动资产'],['otherCurrentAssets','其他流动资产'],
+        ].map(([k,l]) => `<tr><td style="padding-left:24px;">${l}</td><td class="number-cell"><input class="input-field input-number" type="number" value="${num(k)||''}" placeholder="0" onchange="set('${k}',this.value)"></td><td class="number-cell" style="background:#F9F8F5;"><input class="input-field input-number" type="number" value="${num(k)||''}" placeholder="0" onchange="set('${k}',this.value)"></td></tr>`).join('')}
+        
+        <tr style="background:#EEF2FF; font-weight:700;"><td colspan="3">🏗️ 非流动资产</td></tr>
+        ${[
+          ['longTermEquity','长期股权投资'],['investmentProperty','投资性房地产'],['fixedAssets','固定资产'],
+          ['constructionInProgress','在建工程'],['intangibleAssets','无形资产'],['goodwill','商誉'],
+          ['deferredTax','递延所得税资产'],['availableFinancial','可供出售金融资产'],
+        ].map(([k,l]) => `<tr><td style="padding-left:24px;">${l}</td><td class="number-cell"><input class="input-field input-number" type="number" value="${num(k)||''}" placeholder="0" onchange="set('${k}',this.value)"></td><td class="number-cell" style="background:#F9F8F5;"><input class="input-field input-number" type="number" value="${num(k)||''}" placeholder="0" onchange="set('${k}',this.value)"></td></tr>`).join('')}
+        
+        <tr style="background:#EEF2FF; font-weight:700;"><td colspan="3">💸 流动负债</td></tr>
+        ${[
+          ['shortTermBorrowing','短期借款'],['tradingFinancialLiab','交易性金融负债'],['notesPayable','应付票据'],
+          ['accountsPayable','应付账款'],['advanceReceipts','预收款项'],['payrollPayable','应付职工薪酬'],
+          ['taxPayable','应交税费'],['otherPayables','其他应付款'],['dividendPayable','应付股利'],
+        ].map(([k,l]) => `<tr><td style="padding-left:24px;">${l}</td><td class="number-cell"><input class="input-field input-number" type="number" value="${num(k)||''}" placeholder="0" onchange="set('${k}',this.value)"></td><td class="number-cell" style="background:#F9F8F5;"><input class="input-field input-number" type="number" value="${num(k)||''}" placeholder="0" onchange="set('${k}',this.value)"></td></tr>`).join('')}
+        
+        <tr style="background:#EEF2FF; font-weight:700;"><td colspan="3">🏛️ 非流动负债</td></tr>
+        ${[
+          ['longTermBorrowing','长期借款'],['bondsPayable','应付债券'],['deferredTaxLiab','递延所得税负债'],
+        ].map(([k,l]) => `<tr><td style="padding-left:24px;">${l}</td><td class="number-cell"><input class="input-field input-number" type="number" value="${num(k)||''}" placeholder="0" onchange="set('${k}',this.value)"></td><td class="number-cell" style="background:#F9F8F5;"><input class="input-field input-number" type="number" value="${num(k)||''}" placeholder="0" onchange="set('${k}',this.value)"></td></tr>`).join('')}
+        
+        <tr style="background:#EEF2FF; font-weight:700;"><td colspan="3">👥 所有者权益</td></tr>
+        ${[
+          ['shareCapital','实收资本/股本'],['capitalReserve','资本公积'],['surplusReserve','盈余公积'],
+          ['unappropriatedProfit','未分配利润'],['minorityInterest','少数股东权益'],
+        ].map(([k,l]) => `<tr><td style="padding-left:24px;">${l}</td><td class="number-cell"><input class="input-field input-number" type="number" value="${num(k)||''}" placeholder="0" onchange="set('${k}',this.value)"></td><td class="number-cell" style="background:#F9F8F5;"><input class="input-field input-number" type="number" value="${num(k)||''}" placeholder="0" onchange="set('${k}',this.value)"></td></tr>`).join('')}
+      </tbody>
+    </table>
+    </div>
+  `;
+}
+
+function renderPLTable(companyId) {
+  const set = (key, val) => {
+    if (!state.pl[companyId]) state.pl[companyId] = {};
+    state.pl[companyId][key] = parseFloat(val) || 0;
+  };
+  const num = (key) => state.pl[companyId]?.[key] ?? 0;
+
+  return `
+    <div style="overflow-x:auto;">
+    <table>
+      <thead><tr><th style="width:40%;">利润表项目</th><th style="text-align:right;">本期金额</th><th style="text-align:right; background:#2A3F60;">上期金额</th></tr></thead>
+      <tbody>
+        ${[
+          ['revenue','一、营业收入'],['COGS','减：营业成本'],['taxAndSurcharge','营业税金及附加'],
+          ['sellingExpense','销售费用'],['adminExpense','管理费用'],['financeExpense','财务费用'],
+          ['impairmentLoss','资产减值损失'],['fairValueChange','公允价值变动收益'],
+          ['investmentIncome','投资收益'],
+        ].map(([k,l]) => `<tr><td style="padding-left:24px;">${l}</td><td class="number-cell"><input class="input-field input-number" type="number" value="${num(k)||''}" placeholder="0" onchange="set('${k}',this.value)"></td><td class="number-cell" style="background:#F9F8F5;"><input class="input-field input-number" type="number" value="${num(k)||''}" placeholder="0" onchange="set('${k}',this.value)"></td></tr>`).join('')}
+        <tr style="background:#FEF3C7; font-weight:700;"><td>二、营业利润</td><td class="number-cell">${fmt(num('grossProfit') - num('taxAndSurcharge') - num('sellingExpense') - num('adminExpense') - num('financeExpense'))}</td><td></td></tr>
+        ${[
+          ['nonOperatingIncome','加：营业外收入'],['nonOperatingExpense','减：营业外支出'],
+        ].map(([k,l]) => `<tr><td style="padding-left:24px;">${l}</td><td class="number-cell"><input class="input-field input-number" type="number" value="${num(k)||''}" placeholder="0" onchange="set('${k}',this.value)"></td><td class="number-cell" style="background:#F9F8F5;"><input class="input-field input-number" type="number" value="${num(k)||''}" placeholder="0" onchange="set('${k}',this.value)"></td></tr>`).join('')}
+        <tr style="background:#FEF3C7; font-weight:700;"><td>三、利润总额</td><td class="number-cell">${fmt(num('totalProfit'))}</td><td></td></tr>
+        ${[
+          ['incomeTax','减：所得税费用'],
+        ].map(([k,l]) => `<tr><td style="padding-left:24px;">${l}</td><td class="number-cell"><input class="input-field input-number" type="number" value="${num(k)||''}" placeholder="0" onchange="set('${k}',this.value)"></td><td class="number-cell" style="background:#F9F8F5;"><input class="input-field input-number" type="number" value="${num(k)||''}" placeholder="0" onchange="set('${k}',this.value)"></td></tr>`).join('')}
+        <tr style="background:#EEF2FF; font-weight:700; font-size:14px;"><td>四、净利润</td><td class="number-cell">${fmt(num('netProfit'))}</td><td></td></tr>
+        ${[
+          ['parentNetProfit','归属于母公司所有者的净利润'],
+        ].map(([k,l]) => `<tr><td style="padding-left:24px; font-size:12px; color:var(--text-muted);">${l}</td><td class="number-cell"><input class="input-field input-number" type="number" value="${num(k)||''}" placeholder="0" onchange="set('${k}',this.value)"></td><td class="number-cell" style="background:#F9F8F5;"><input class="input-field input-number" type="number" value="${num(k)||''}" placeholder="0" onchange="set('${k}',this.value)"></td></tr>`).join('')}
+        ${[
+          ['minorityProfit','少数股东损益'],
+        ].map(([k,l]) => `<tr><td style="padding-left:24px; font-size:12px; color:var(--text-muted);">${l}</td><td class="number-cell"><input class="input-field input-number" type="number" value="${num(k)||''}" placeholder="0" onchange="set('${k}',this.value)"></td><td class="number-cell" style="background:#F9F8F5;"><input class="input-field input-number" type="number" value="${num(k)||''}" placeholder="0" onchange="set('${k}',this.value)"></td></tr>`).join('')}
+      </tbody>
+    </table>
+    </div>
+  `;
+}
+
+function renderCFTable(companyId) {
+  const set = (key, val) => {
+    if (!state.cf[companyId]) state.cf[companyId] = {};
+    state.cf[companyId][key] = parseFloat(val) || 0;
+  };
+  const num = (key) => state.cf[companyId]?.[key] ?? 0;
+
+  return `
+    <div style="overflow-x:auto;">
+    <table>
+      <thead><tr><th style="width:40%;">现金流量表项目</th><th style="text-align:right;">本期金额</th><th style="text-align:right; background:#2A3F60;">上期金额</th></tr></thead>
+      <tbody>
+        <tr style="background:#EEF2FF; font-weight:700;"><td colspan="3">💵 经营活动</td></tr>
+        ${[
+          ['cashFromSales','销售商品、提供劳务收到的现金'],['taxRefund','收到的税费返还'],
+          ['otherOperatingCash','收到其他与经营活动有关的现金'],
+          ['cashForGoods','购买商品、接受劳务支付的现金'],['cashForEmployees','支付给职工的现金'],
+          ['cashForTaxes','支付的各项税费'],['otherOperatingCashOut','支付其他与经营活动有关的现金'],
+        ].map(([k,l]) => `<tr><td style="padding-left:24px;">${l}</td><td class="number-cell"><input class="input-field input-number" type="number" value="${num(k)||''}" placeholder="0" onchange="set('${k}',this.value)"></td><td class="number-cell" style="background:#F9F8F5;"><input class="input-field input-number" type="number" value="${num(k)||''}" placeholder="0" onchange="set('${k}',this.value)"></td></tr>`).join('')}
+        <tr style="background:#DCFCE7; font-weight:700;"><td>经营活动产生的现金流量净额</td><td class="number-cell">${fmt(num('operatingNetCash'))}</td><td></td></tr>
+        <tr style="background:#EEF2FF; font-weight:700;"><td colspan="3">🏗️ 投资活动</td></tr>
+        ${[
+          ['disposalOfAssets','处置固定资产、无形资产收回的现金'],
+          ['acquisitionOfAssets','购建固定资产、无形资产支付的现金'],
+          ['investmentPayments','投资支付的现金'],['acquisitionOfSubsidiary','取得子公司支付的现金'],
+        ].map(([k,l]) => `<tr><td style="padding-left:24px;">${l}</td><td class="number-cell"><input class="input-field input-number" type="number" value="${num(k)||''}" placeholder="0" onchange="set('${k}',this.value)"></td><td class="number-cell" style="background:#F9F8F5;"><input class="input-field input-number" type="number" value="${num(k)||''}" placeholder="0" onchange="set('${k}',this.value)"></td></tr>`).join('')}
+        <tr style="background:#DCFCE7; font-weight:700;"><td>投资活动产生的现金流量净额</td><td class="number-cell">${fmt(num('investingNetCash'))}</td><td></td></tr>
+        <tr style="background:#EEF2FF; font-weight:700;"><td colspan="3">🏛️ 筹资活动</td></tr>
+        ${[
+          ['absorptionInvestment','吸收投资收到的现金'],['borrowingsReceived','取得借款收到的现金'],
+          ['debtRepayment','偿还债务支付的现金'],['dividendPayment','分配股利、利润支付的现金'],
+        ].map(([k,l]) => `<tr><td style="padding-left:24px;">${l}</td><td class="number-cell"><input class="input-field input-number" type="number" value="${num(k)||''}" placeholder="0" onchange="set('${k}',this.value)"></td><td class="number-cell" style="background:#F9F8F5;"><input class="input-field input-number" type="number" value="${num(k)||''}" placeholder="0" onchange="set('${k}',this.value)"></td></tr>`).join('')}
+        <tr style="background:#DCFCE7; font-weight:700;"><td>筹资活动产生的现金流量净额</td><td class="number-cell">${fmt(num('financingNetCash'))}</td><td></td></tr>
+        <tr style="background:#DCFCE7; font-weight:700;"><td>现金及现金等价物净增加额</td><td class="number-cell">${fmt(num('netIncreaseInCash'))}</td><td></td></tr>
+      </tbody>
+    </table>
+    </div>
+  `;
+}
+
+function autoFillSample(companyId) {
+  const isParent = state.companies.find(c => c.id === companyId)?.type === 'parent';
+  const seed = isParent ? 100000 : 50000;
+  
+  state.pl[companyId] = {
+    revenue: seed * 5 + Math.random() * seed * 2,
+    COGS: seed * 3 + Math.random() * seed,
+    taxAndSurcharge: seed * 0.1,
+    sellingExpense: seed * 0.3,
+    adminExpense: seed * 0.5,
+    financeExpense: seed * 0.2,
+    impairmentLoss: seed * 0.05,
+    fairValueChange: seed * 0.02,
+    investmentIncome: isParent ? seed * 0.4 : 0,
+    nonOperatingIncome: seed * 0.05,
+    nonOperatingExpense: seed * 0.02,
+    incomeTax: seed * 0.3,
+    netProfit: seed * 0.7,
+    parentNetProfit: seed * 0.7,
+    minorityProfit: 0,
+  };
+  state.bs[companyId] = {
+    monetaryFunds: seed * 3,
+    tradingFinancial: seed * 1,
+    accountsReceivable: seed * 2,
+    otherReceivables: seed * 0.5,
+    prepayment: seed * 0.3,
+    inventory: seed * 2.5,
+    otherCurrentAssets: seed * 0.2,
+    longTermEquity: isParent ? seed * 4 : 0,
+    investmentProperty: seed * 1,
+    fixedAssets: seed * 5,
+    constructionInProgress: seed * 1.5,
+    intangibleAssets: seed * 1,
+    deferredTax: seed * 0.2,
+    shortTermBorrowing: seed * 2,
+    accountsPayable: seed * 1.5,
+    advanceReceipts: seed * 0.5,
+    payrollPayable: seed * 0.4,
+    taxPayable: seed * 0.3,
+    otherPayables: seed * 0.5,
+    dividendPayable: seed * 0.3,
+    longTermBorrowing: seed * 3,
+    shareCapital: seed * 5,
+    capitalReserve: seed * 2,
+    surplusReserve: seed * 0.5,
+    unappropriatedProfit: seed * 1.5,
+    minorityInterest: isParent ? 0 : seed * 0.3,
+  };
+  state.cf[companyId] = {
+    cashFromSales: seed * 4,
+    cashForGoods: seed * 2.5,
+    cashForEmployees: seed * 0.8,
+    cashForTaxes: seed * 0.5,
+    operatingNetCash: seed * 0.3,
+    acquisitionOfAssets: seed * 1,
+    borrowingsReceived: seed * 1,
+    debtRepayment: seed * 0.5,
+    dividendPayment: seed * 0.3,
+    investingNetCash: -seed * 1,
+    financingNetCash: seed * 0.2,
+    netIncreaseInCash: seed * 0.5,
+    beginningCash: seed * 2,
+    endingCash: seed * 2.5,
+  };
+  render();
+  showToast('✅ 示例数据已填充');
+}
+
+// ===== STEP 2: Intercompany Eliminations =====
+function renderStep2() {
+  return `
+    <div class="step-card">
+      <h2 style="font-size:22px; color:var(--navy); margin-bottom:4px;">🔄 内部交易抵销录入</h2>
+      <p style="color:var(--text-muted); margin-bottom:20px;">录入母子公司之间的内部交易和往来，系统将据此自动生成抵销分录</p>
+
+      <div class="expert-card" style="margin-bottom:24px;">
+        <div style="display:flex; gap:12px; align-items:flex-start;">
+          <div class="expert-avatar">👔</div>
+          <div>
+            <div style="font-weight:700; margin-bottom:6px;">💡 需要抵销的内部交易类型</div>
+            <div style="font-size:13px; line-height:1.8; opacity:0.9;">
+              <strong>① 内部销售与采购</strong> — 母子公司相互销售商品/服务<br>
+              <strong>② 内部往来</strong> — 母子公司之间的应收应付账款<br>
+              <strong>③ 内部股利分配</strong> — 子公司宣告但尚未支付的股利<br>
+              <strong>④ 内部固定资产交易</strong> — 母子公司相互转让固定资产
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Internal Sales -->
+      <div style="margin-bottom:24px;">
+        <div class="accordion-header" onclick="toggleAccordion('ic-sales')">
+          <span>📦 内部销售与采购抵销 <span class="badge badge-red">${state.ic.sales.length} 笔</span></span>
+          <span>${state._icOpen === 'ic-sales' ? '▲' : '▼'}</span>
+        </div>
+        ${state._icOpen === 'ic-sales' ? `
+        <div style="padding:16px; border:1px solid var(--border); border-top:none; background:white;">
+          <table>
+            <thead><tr><th>销售方</th><th>采购方</th><th>金额（元）</th><th></th></tr></thead>
+            <tbody>
+              ${state.ic.sales.map((tx, i) => renderICSalesRow(tx, i)).join('')}
+            </tbody>
+          </table>
+          <button class="btn-outline" style="margin-top:12px; font-size:12px;" onclick="addICSales()">+ 添加内部销售记录</button>
+        </div>` : ''}
+      </div>
+
+      <!-- Internal AR/AP -->
+      <div style="margin-bottom:24px;">
+        <div class="accordion-header" onclick="toggleAccordion('ic-arap')">
+          <span>🏦 内部往来（应收/应付账款）抵销 <span class="badge badge-red">${state.ic.arap.length} 笔</span></span>
+          <span>${state._icOpen === 'ic-arap' ? '▲' : '▼'}</span>
+        </div>
+        ${state._icOpen === 'ic-arap' ? `
+        <div style="padding:16px; border:1px solid var(--border); border-top:none; background:white;">
+          <table>
+            <thead><tr><th>债权方</th><th>债务方</th><th>金额（元）</th><th></th></tr></thead>
+            <tbody>
+              ${state.ic.arap.map((tx, i) => renderICArapRow(tx, i)).join('')}
+            </tbody>
+          </table>
+          <button class="btn-outline" style="margin-top:12px; font-size:12px;" onclick="addICArap()">+ 添加内部往来记录</button>
+        </div>` : ''}
+      </div>
+
+      <!-- Internal Dividends -->
+      <div style="margin-bottom:24px;">
+        <div class="accordion-header" onclick="toggleAccordion('ic-div')">
+          <span>💸 内部股利分配抵销 <span class="badge badge-red">${state.ic.dividends.length} 笔</span></span>
+          <span>${state._icOpen === 'ic-div' ? '▲' : '▼'}</span>
+        </div>
+        ${state._icOpen === 'ic-div' ? `
+        <div style="padding:16px; border:1px solid var(--border); border-top:none; background:white;">
+          <table>
+            <thead><tr><th>宣告股利的子公司</th><th>股利收取方（母公司）</th><th>金额（元）</th><th></th></tr></thead>
+            <tbody>
+              ${state.ic.dividends.map((tx, i) => renderICDividendRow(tx, i)).join('')}
+            </tbody>
+          </table>
+          <button class="btn-outline" style="margin-top:12px; font-size:12px;" onclick="addICDividend()">+ 添加股利分配记录</button>
+        </div>` : ''}
+      </div>
+
+      <!-- Quick AI Help -->
+      <div class="expert-card" style="background:linear-gradient(135deg,#065F46,#047857); margin-bottom:24px;">
+        <div style="font-weight:700; margin-bottom:8px;">🤖 AI专家问答</div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          ${[
+            ['问我','投资与权益抵销怎么做？', () => showExpertAnswer('investment_elimination')],
+            ['问我','内部销售抵销分录是什么？', () => showExpertAnswer('ic_sales_elimination')],
+            ['问我','少数股东权益如何计算？', () => showExpertAnswer('minority_interest')],
+          ].map(([label, q, fn]) => `<button onclick="${fn.name}()" style="background:rgba(255,255,255,.15); color:white; border:1px solid rgba(255,255,255,.3); padding:6px 12px; border-radius:20px; cursor:pointer; font-size:12px;">${q}</button>`).join('')}
+        </div>
+        <div id="expert-answer" style="margin-top:12px; display:none;" class="expert-answer-box"></div>
+      </div>
+
+      <div style="display:flex; justify-content:space-between;">
+        <button class="btn-outline" onclick="goToStep(1)">← 上一步</button>
+        <button class="btn-gold" onclick="goToStep(3)">下一步：抵销分录计算 →</button>
+      </div>
+    </div>
+  `;
+}
+
+function toggleAccordion(id) {
+  state._icOpen = state._icOpen === id ? null : id;
+  render();
+}
+
+function renderICSalesRow(tx, i) {
+  return `
+    <tr>
+      <td><select class="input-field" onchange="state.ic.sales[${i}].from=this.value">
+        ${state.companies.map(c => `<option value="${c.id}" ${tx.from===c.id?'selected':''}>${c.name}</option>`).join('')}
+      </select></td>
+      <td><select class="input-field" onchange="state.ic.sales[${i}].to=this.value">
+        ${state.companies.map(c => `<option value="${c.id}" ${tx.to===c.id?'selected':''}>${c.name}</option>`).join('')}
+      </select></td>
+      <td><input class="input-field input-number" type="number" value="${tx.amount || ''}" placeholder="0"
+             onchange="state.ic.sales[${i}].amount=parseFloat(this.value)||0"></td>
+      <td><button onclick="state.ic.sales.splice(${i},1); render()" style="color:var(--red); background:none; border:none; cursor:pointer;">🗑️</button></td>
+    </tr>`;
+}
+
+function renderICArapRow(tx, i) {
+  return `
+    <tr>
+      <td><select class="input-field" onchange="state.ic.arap[${i}].from=this.value">
+        ${state.companies.map(c => `<option value="${c.id}" ${tx.from===c.id?'selected':''}>${c.name}</option>`).join('')}
+      </select></td>
+      <td><select class="input-field" onchange="state.ic.arap[${i}].to=this.value">
+        ${state.companies.map(c => `<option value="${c.id}" ${tx.to===c.id?'selected':''}>${c.name}</option>`).join('')}
+      </select></td>
+      <td><input class="input-field input-number" type="number" value="${tx.amount || ''}" placeholder="0"
+             onchange="state.ic.arap[${i}].amount=parseFloat(this.value)||0"></td>
+      <td><button onclick="state.ic.arap.splice(${i},1); render()" style="color:var(--red); background:none; border:none; cursor:pointer;">🗑️</button></td>
+    </tr>`;
+}
+
+function renderICDividendRow(tx, i) {
+  return `
+    <tr>
+      <td><select class="input-field" onchange="state.ic.dividends[${i}].from=this.value">
+        ${state.companies.filter(c=>c.type==='subsidiary').map(c => `<option value="${c.id}" ${tx.from===c.id?'selected':''}>${c.name}</option>`).join('')}
+      </select></td>
+      <td><select class="input-field" onchange="state.ic.dividends[${i}].to=this.value">
+        ${state.companies.filter(c=>c.type==='parent').map(c => `<option value="${c.id}" ${tx.to===c.id?'selected':''}>${c.name}</option>`).join('')}
+      </select></td>
+      <td><input class="input-field input-number" type="number" value="${tx.amount || ''}" placeholder="0"
+             onchange="state.ic.dividends[${i}].amount=parseFloat(this.value)||0"></td>
+      <td><button onclick="state.ic.dividends.splice(${i},1); render()" style="color:var(--red); background:none; border:none; cursor:pointer;">🗑️</button></td>
+    </tr>`;
+}
+
+function addICSales() {
+  state.ic.sales.push({ from: state.companies[0]?.id || '', to: state.companies[1]?.id || '', amount: 0 });
+  render();
+}
+function addICArap() {
+  state.ic.arap.push({ from: state.companies[0]?.id || '', to: state.companies[1]?.id || '', amount: 0 });
+  render();
+}
+function addICDividend() {
+  const subs = state.companies.filter(c => c.type === 'subsidiary');
+  state.ic.dividends.push({ from: subs[0]?.id || '', to: state.companies.find(c => c.type === 'parent')?.id || '', amount: 0 });
+  render();
+}
+
+function showExpertAnswer(key) {
+  const el = document.getElementById('expert-answer');
+  if (!el) return;
+  el.style.display = 'block';
+  el.innerHTML = `<div style="background:rgba(255,255,255,.15); padding:12px; border-radius:8px; font-size:13px; line-height:2; white-space:pre-wrap;">${expertAnswers[key] || '正在加载...'}</div>`;
+}
+
+// ===== STEP 3: Elimination Entries =====
+function renderStep3() {
+  const result = calculateConsolidated();
+  const subs = state.companies.filter(c => c.type === 'subsidiary');
+
+  return `
+    <div class="step-card">
+      <h2 style="font-size:22px; color:var(--navy); margin-bottom:4px;">⚙️ 抵销分录计算</h2>
+      <p style="color:var(--text-muted); margin-bottom:20px;">系统根据录入的单体报表和内部交易，自动计算合并抵销分录</p>
+
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:24px;">
+        <div style="background:#EEF2FF; border-radius:12px; padding:16px; text-align:center;">
+          <div style="font-size:28px; font-weight:700; color:var(--navy);">${state.companies.length}</div>
+          <div style="font-size:12px; color:var(--text-muted);">纳入合并单位</div>
+        </div>
+        <div style="background:#FEF3C7; border-radius:12px; padding:16px; text-align:center;">
+          <div style="font-size:28px; font-weight:700; color:#92400E;">${state.aiExplanations.length}</div>
+          <div style="font-size:12px; color:var(--text-muted);">抵销分录条数</div>
+        </div>
+        <div style="background:#F0FFF4; border-radius:12px; padding:16px; text-align:center;">
+          <div style="font-size:28px; font-weight:700; color:var(--green);">¥${fmt(Math.abs(result.pl.netProfit || 0))}</div>
+          <div style="font-size:12px; color:var(--text-muted);">合并净利润</div>
+        </div>
+        <div style="background:#FFF5F5; border-radius:12px; padding:16px; text-align:center;">
+          <div style="font-size:28px; font-weight:700; color:var(--red);">¥${fmt(Math.abs(result.bs.minorityInterest || 0))}</div>
+          <div style="font-size:12px; color:var(--text-muted);">少数股东权益</div>
+        </div>
+      </div>
+
+      <!-- Elimination Entries List -->
+      <h3 style="font-size:15px; color:var(--navy); margin-bottom:12px;">📜 抵销分录明细</h3>
+      ${state.aiExplanations.length === 0 ? `
+        <div style="text-align:center; padding:40px; color:var(--text-muted);">
+          暂无抵销分录，请先录入单体报表数据
+        </div>
+      ` : `
+        <div style="display:flex; flex-direction:column; gap:12px;">
+          ${state.aiExplanations.map((exp, i) => renderEliminationEntry(exp, i)).join('')}
+        </div>
+      `}
+
+      <!-- Manual Addition -->
+      <div style="margin-top:24px; padding-top:24px; border-top:1px solid var(--border);">
+        <h3 style="font-size:15px; color:var(--navy); margin-bottom:12px;">✏️ 手动添加抵销分录</h3>
+        <div style="display:grid; grid-template-columns:1fr 1fr auto; gap:8px; align-items:end;">
+          <div>
+            <label style="font-size:12px; color:var(--text-muted);">借方科目</label>
+            <input class="input-field" id="manual-dr" placeholder="如：应付账款">
+          </div>
+          <div>
+            <label style="font-size:12px; color:var(--text-muted);">贷方科目</label>
+            <input class="input-field" id="manual-cr" placeholder="如：应收账款">
+          </div>
+          <button class="btn-gold" style="padding:8px 16px;" onclick="addManualElimination()">添加</button>
+        </div>
+      </div>
+
+      <div style="display:flex; justify-content:space-between; margin-top:24px;">
+        <button class="btn-outline" onclick="goToStep(2)">← 上一步</button>
+        <button class="btn-gold" onclick="goToStep(4)">查看合并报表结果 →</button>
+      </div>
+    </div>
+  `;
+}
+
+function renderEliminationEntry(exp, i) {
+  const colors = { '内部销售抵销': '#FEE2E2', '未实现内部利润': '#FEF3C7', '内部往来抵销': '#DBEAFE', '内部股利分配抵销': '#F3E8FF', '投资与权益抵销': '#E0F2FE' };
+  const bg = colors[exp.type] || '#F3F4F6';
+  return `
+    <div class="elimination-entry" style="background:${bg};">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+        <span class="badge badge-red">${exp.type}</span>
+        ${exp.note ? `<span style="font-size:11px; color:var(--text-muted);">${exp.note}</span>` : ''}
+      </div>
+      <div style="font-size:13px; line-height:1.8; color:var(--text);">
+        <strong>抵销分录：</strong>${exp.detail}
+      </div>
+      ${exp.dr ? `
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:8px; font-size:12px;">
+        <div style="background:white; padding:8px; border-radius:6px;">
+          <span style="color:var(--red);">借：</span>${exp.dr} <strong>${fmtFull(exp.drAmt)}</strong>
+        </div>
+        ${exp.cr ? `<div style="background:white; padding:8px; border-radius:6px;">
+          <span style="color:var(--green);">贷：</span>${exp.cr} <strong>${fmtFull(exp.crAmt)}</strong>
+        </div>` : ''}
+        ${exp.cr2 ? `<div style="background:white; padding:8px; border-radius:6px;">
+          <span style="color:var(--green);">贷：</span>${exp.cr2} <strong>${fmtFull(exp.crAmt2)}</strong>
+        </div>` : ''}
+      </div>` : ''}
+    </div>
+  `;
+}
+
+function addManualElimination() {
+  const dr = document.getElementById('manual-dr').value;
+  const cr = document.getElementById('manual-cr').value;
+  if (!dr || !cr) { showToast('请填写借贷方科目'); return; }
+  state.aiExplanations.push({ type: '手动抵销', detail: `借：${dr} / 贷：${cr}`, dr, cr });
+  showToast('✅ 手动抵销分录已添加');
+  render();
+}
+
+// ===== STEP 4: Consolidated Financial Statements =====
+function renderStep4() {
+  const result = state.consolidated || calculateConsolidated();
+  
+  return `
+    <div class="step-card">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+        <div>
+          <h2 style="font-size:22px; color:var(--navy); margin-bottom:4px;">📊 合并财务报表</h2>
+          <p style="color:var(--text-muted); font-size:13px;">${state.groupName} | ${state.reportPeriod} | 资产负债表日：${state.balanceDate}</p>
+        </div>
+        <div style="display:flex; gap:8px;">
+          <button class="btn-outline" style="padding:8px 16px; font-size:13px;" onclick="exportConsolidated()">📥 导出合并报表</button>
+          <button class="btn-gold" style="padding:8px 16px; font-size:13px;" onclick="window.print()">🖨️ 打印</button>
+        </div>
+      </div>
+
+      <div style="display:flex; gap:8px; margin-bottom:16px;">
+        <button class="tab-btn ${state._resultTab === 'bs' || !state._resultTab ? 'active' : ''}" onclick="state._resultTab='bs'; render()">📊 合并资产负债表</button>
+        <button class="tab-btn ${state._resultTab === 'pl' ? 'active' : ''}" onclick="state._resultTab='pl'; render()">📈 合并利润表</button>
+        <button class="tab-btn ${state._resultTab === 'cf' ? 'active' : ''}" onclick="state._resultTab='cf'; render()">💰 合并现金流量表</button>
+        <button class="tab-btn ${state._resultTab === 'ai' ? 'active' : ''}" onclick="state._resultTab='ai'; render()">🤖 AI专家解读</button>
+      </div>
+
+      ${state._resultTab === 'bs' || !state._resultTab ? renderConsolidatedBS(result) : ''}
+      ${state._resultTab === 'pl' ? renderConsolidatedPL(result) : ''}
+      ${state._resultTab === 'cf' ? renderConsolidatedCF(result) : ''}
+      ${state._resultTab === 'ai' ? renderAIAnalysis(result) : ''}
+    </div>
+  `;
+}
+
+function renderConsolidatedBS(r) {
+  const bs = r.bs;
+  const num = (k) => bs[k] || 0;
+  const totalAssets = num('currentAssetsTotal') + num('nonCurrentAssetsTotal');
+  const totalLiab = num('currentLiabTotal') + num('nonCurrentLiabTotal');
+  const parentEquity = num('shareCapital') + num('capitalReserve') + num('surplusReserve') + num('unappropriatedProfit');
+  const totalEquity = parentEquity + num('minorityInterest');
+
+  return `
+    <div style="background:white; border:1.5px solid var(--navy); border-radius:12px; overflow:hidden;">
+      <div style="background:var(--navy); color:white; padding:12px 24px; text-align:center;">
+        <div style="font-family:'Noto Serif SC'; font-size:18px; font-weight:700;">${state.groupName}</div>
+        <div style="font-size:14px;">合并资产负债表</div>
+        <div style="font-size:12px; opacity:0.7; margin-top:4px;">${state.reportPeriod} &nbsp;|&nbsp; 单位：元</div>
+      </div>
+      <table>
+        <thead><tr><th style="width:40%;">资产</th><th style="text-align:right; width:25%;">期末余额</th><th style="text-align:right; width:25%;">年初余额</th></tr></thead>
+        <tbody>
+          <tr style="background:#EEF2FF; font-weight:700;"><td colspan="3">📦 流动资产</td></tr>
+          ${[['monetaryFunds','货币资金'],['accountsReceivable','应收账款'],['otherReceivables','其他应收款'],['prepayment','预付款项'],['inventory','存货'],['otherCurrentAssets','其他流动资产']].map(([k,l]) => `<tr><td style="padding-left:24px;">${l}</td><td class="number-cell">${fmtFull(num(k))}</td><td class="number-cell" style="color:var(--text-muted);">—</td></tr>`).join('')}
+          <tr style="background:#DCFCE7; font-weight:700;"><td>流动资产合计</td><td class="number-cell">${fmtFull(num('currentAssetsTotal'))}</td><td></td></tr>
+          
+          <tr style="background:#EEF2FF; font-weight:700;"><td colspan="3">🏗️ 非流动资产</td></tr>
+          ${[['longTermEquity','长期股权投资'],['investmentProperty','投资性房地产'],['fixedAssets','固定资产'],['constructionInProgress','在建工程'],['intangibleAssets','无形资产'],['goodwill','商誉'],['deferredTax','递延所得税资产']].map(([k,l]) => `<tr><td style="padding-left:24px;">${l}</td><td class="number-cell">${fmtFull(num(k))}</td><td class="number-cell" style="color:var(--text-muted);">—</td></tr>`).join('')}
+          <tr style="background:#DCFCE7; font-weight:700;"><td>非流动资产合计</td><td class="number-cell">${fmtFull(num('nonCurrentAssetsTotal'))}</td><td></td></tr>
+          <tr style="background:var(--navy); color:white; font-weight:700;"><td>资产总计</td><td class="number-cell">${fmtFull(totalAssets)}</td><td></td></tr>
+
+          <tr style="background:#EEF2FF; font-weight:700;"><td colspan="3">💸 负债</td></tr>
+          ${[['shortTermBorrowing','短期借款'],['accountsPayable','应付账款'],['payrollPayable','应付职工薪酬'],['taxPayable','应交税费'],['otherPayables','其他应付款']].map(([k,l]) => `<tr><td style="padding-left:24px;">${l}</td><td class="number-cell">${fmtFull(num(k))}</td><td class="number-cell" style="color:var(--text-muted);">—</td></tr>`).join('')}
+          <tr style="background:#DCFCE7; font-weight:700;"><td>流动负债合计</td><td class="number-cell">${fmtFull(num('currentLiabTotal'))}</td><td></td></tr>
+          ${[['longTermBorrowing','长期借款'],['bondsPayable','应付债券'],['deferredTaxLiab','递延所得税负债']].map(([k,l]) => `<tr><td style="padding-left:24px;">${l}</td><td class="number-cell">${fmtFull(num(k))}</td><td class="number-cell" style="color:var(--text-muted);">—</td></tr>`).join('')}
+          <tr style="background:#DCFCE7; font-weight:700;"><td>非流动负债合计</td><td class="number-cell">${fmtFull(num('nonCurrentLiabTotal'))}</td><td></td></tr>
+          <tr style="background:var(--navy); color:white; font-weight:700;"><td>负债合计</td><td class="number-cell">${fmtFull(totalLiab)}</td><td></td></tr>
+
+          <tr style="background:#EEF2FF; font-weight:700;"><td colspan="3">👥 所有者权益</td></tr>
+          ${[['shareCapital','实收资本（或股本）'],['capitalReserve','资本公积'],['surplusReserve','盈余公积'],['unappropriatedProfit','未分配利润']].map(([k,l]) => `<tr><td style="padding-left:24px;">${l}</td><td class="number-cell">${fmtFull(num(k))}</td><td class="number-cell" style="color:var(--text-muted);">—</td></tr>`).join('')}
+          <tr style="background:#DBEAFE; font-weight:700;"><td>归属于母公司所有者权益合计</td><td class="number-cell">${fmtFull(parentEquity)}</td><td></td></tr>
+          <tr style="background:#FEF3C7; font-weight:700;"><td>少数股东权益</td><td class="number-cell">${fmtFull(num('minorityInterest'))}</td><td></td></tr>
+          <tr style="background:var(--navy); color:white; font-weight:700;"><td>所有者权益合计</td><td class="number-cell">${fmtFull(totalEquity)}</td><td></td></tr>
+          <tr style="background:var(--navy); color:var(--gold-light); font-weight:700;"><td>负债和所有者权益总计</td><td class="number-cell">${fmtFull(totalAssets)}</td><td></td></tr>
+        </tbody>
+      </table>
+      <div style="padding:12px 24px; font-size:12px; color:var(--text-muted); background:#F9F8F5; border-top:1px solid var(--border);">
+        📐 平衡校验：资产总计 ${fmtFull(totalAssets)} = 负债合计 ${fmtFull(totalLiab)} + 所有者权益合计 ${fmtFull(totalEquity)}
+        ${Math.abs(totalAssets - (totalLiab + totalEquity)) < 1 ? ' ✅ 平衡' : ' ❌ 不平衡'}
+      </div>
+    </div>
+  `;
+}
+
+function renderConsolidatedPL(r) {
+  const pl = r.pl;
+  const num = (k) => pl[k] || 0;
+
+  return `
+    <div style="background:white; border:1.5px solid var(--navy); border-radius:12px; overflow:hidden;">
+      <div style="background:var(--navy); color:white; padding:12px 24px; text-align:center;">
+        <div style="font-family:'Noto Serif SC'; font-size:18px; font-weight:700;">${state.groupName}</div>
+        <div style="font-size:14px;">合并利润表</div>
+        <div style="font-size:12px; opacity:0.7; margin-top:4px;">${state.reportPeriod} &nbsp;|&nbsp; 单位：元</div>
+      </div>
+      <table>
+        <thead><tr><th style="width:50%;">项目</th><th style="text-align:right; width:25%;">本期金额</th><th style="text-align:right; width:25%;">上期金额</th></tr></thead>
+        <tbody>
+          <tr><td>一、营业收入</td><td class="number-cell" style="font-weight:700;">${fmtFull(num('revenue'))}</td><td></td></tr>
+          <tr><td style="padding-left:24px;">减：营业成本</td><td class="number-cell">${fmtFull(num('COGS'))}</td><td></td></tr>
+          <tr><td style="padding-left:24px;">　营业税金及附加</td><td class="number-cell">${fmtFull(num('taxAndSurcharge'))}</td><td></td></tr>
+          <tr><td style="padding-left:24px;">　销售费用</td><td class="number-cell">${fmtFull(num('sellingExpense'))}</td><td></td></tr>
+          <tr><td style="padding-left:24px;">　管理费用</td><td class="number-cell">${fmtFull(num('adminExpense'))}</td><td></td></tr>
+          <tr><td style="padding-left:24px;">　财务费用</td><td class="number-cell">${fmtFull(num('financeExpense'))}</td><td></td></tr>
+          <tr><td style="padding-left:24px;">　资产减值损失</td><td class="number-cell">${fmtFull(num('impairmentLoss'))}</td><td></td></tr>
+          <tr><td style="padding-left:24px;">加：公允价值变动收益</td><td class="number-cell">${fmtFull(num('fairValueChange'))}</td><td></td></tr>
+          <tr><td style="padding-left:24px;">　投资收益</td><td class="number-cell">${fmtFull(num('investmentIncome'))}</td><td></td></tr>
+          <tr style="background:#FEF3C7; font-weight:700;"><td>二、营业利润</td><td class="number-cell">${fmtFull(num('operatingProfit') || (num('revenue') - num('COGS') - num('taxAndSurcharge') - num('sellingExpense') - num('adminExpense') - num('financeExpense')))}</td><td></td></tr>
+          <tr><td style="padding-left:24px;">加：营业外收入</td><td class="number-cell">${fmtFull(num('nonOperatingIncome'))}</td><td></td></tr>
+          <tr><td style="padding-left:24px;">减：营业外支出</td><td class="number-cell">${fmtFull(num('nonOperatingExpense'))}</td><td></td></tr>
+          <tr style="background:#FEF3C7; font-weight:700;"><td>三、利润总额</td><td class="number-cell">${fmtFull(num('totalProfit') || (num('operatingProfit') + num('nonOperatingIncome') - num('nonOperatingExpense')))}</td><td></td></tr>
+          <tr><td style="padding-left:24px;">减：所得税费用</td><td class="number-cell">${fmtFull(num('incomeTax'))}</td><td></td></tr>
+          <tr style="background:var(--navy); color:white; font-weight:700;"><td>四、净利润</td><td class="number-cell">${fmtFull(num('netProfit'))}</td><td></td></tr>
+          <tr style="background:#DBEAFE; font-weight:700;"><td>　归属于母公司所有者的净利润</td><td class="number-cell">${fmtFull(num('parentNetProfit'))}</td><td></td></tr>
+          <tr style="background:#FEF3C7; font-weight:700;"><td>　*少数股东损益</td><td class="number-cell">${fmtFull(num('minorityProfit'))}</td><td></td></tr>
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function renderConsolidatedCF(r) {
+  const cf = r.cf;
+
+  return `
+    <div style="background:white; border:1.5px solid var(--navy); border-radius:12px; overflow:hidden;">
+      <div style="background:var(--navy); color:white; padding:12px 24px; text-align:center;">
+        <div style="font-family:'Noto Serif SC'; font-size:18px; font-weight:700;">${state.groupName}</div>
+        <div style="font-size:14px;">合并现金流量表</div>
+        <div style="font-size:12px; opacity:0.7; margin-top:4px;">${state.reportPeriod} &nbsp;|&nbsp; 单位：元</div>
+      </div>
+      <table>
+        <thead><tr><th style="width:50%;">项目</th><th style="text-align:right; width:25%;">本期金额</th><th style="text-align:right; width:25%;">上期金额</th></tr></thead>
+        <tbody>
+          <tr style="background:#EEF2FF; font-weight:700;"><td colspan="3">💵 经营活动</td></tr>
+          ${[['cashFromSales','销售商品、提供劳务收到的现金'],['taxRefund','收到的税费返还'],['otherOperatingCash','收到其他与经营活动有关的现金']].map(([k,l]) => `<tr><td style="padding-left:24px;">${l}</td><td class="number-cell">${fmtFull(cf[k]||0)}</td><td></td></tr>`).join('')}
+          ${[['cashForGoods','购买商品、接受劳务支付的现金'],['cashForEmployees','支付给职工的现金'],['cashForTaxes','支付的各项税费'],['otherOperatingCashOut','支付其他与经营活动有关的现金']].map(([k,l]) => `<tr><td style="padding-left:24px;">${l}</td><td class="number-cell">${fmtFull(cf[k]||0)}</td><td></td></tr>`).join('')}
+          <tr style="background:#DCFCE7; font-weight:700;"><td>经营活动产生的现金流量净额</td><td class="number-cell">${fmtFull(cf.operatingNetCash||0)}</td><td></td></tr>
+          <tr style="background:#EEF2FF; font-weight:700;"><td colspan="3">🏗️ 投资活动</td></tr>
+          ${[['disposalOfAssets','处置固定资产收回的现金'],['acquisitionOfAssets','购建固定资产支付的现金'],['investmentPayments','投资支付的现金']].map(([k,l]) => `<tr><td style="padding-left:24px;">${l}</td><td class="number-cell">${fmtFull(cf[k]||0)}</td><td></td></tr>`).join('')}
+          <tr style="background:#DCFCE7; font-weight:700;"><td>投资活动产生的现金流量净额</td><td class="number-cell">${fmtFull(cf.investingNetCash||0)}</td><td></td></tr>
+          <tr style="background:#EEF2FF; font-weight:700;"><td colspan="3">🏛️ 筹资活动</td></tr>
+          ${[['absorptionInvestment','吸收投资收到的现金'],['borrowingsReceived','取得借款收到的现金'],['debtRepayment','偿还债务支付的现金'],['dividendPayment','分配股利支付的现金']].map(([k,l]) => `<tr><td style="padding-left:24px;">${l}</td><td class="number-cell">${fmtFull(cf[k]||0)}</td><td></td></tr>`).join('')}
+          <tr style="background:#DCFCE7; font-weight:700;"><td>筹资活动产生的现金流量净额</td><td class="number-cell">${fmtFull(cf.financingNetCash||0)}</td><td></td></tr>
+          <tr style="background:#DCFCE7; font-weight:700;"><td>汇率变动对现金的影响</td><td class="number-cell">${fmtFull(cf.effectOfFx||0)}</td><td></td></tr>
+          <tr style="background:var(--navy); color:var(--gold-light); font-weight:700;"><td>五、现金及现金等价物净增加额</td><td class="number-cell">${fmtFull(cf.netIncreaseInCash||0)}</td><td></td></tr>
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function renderAIAnalysis(r) {
+  const pl = r.pl;
+  const bs = r.bs;
+  const subs = state.companies.filter(c => c.type === 'subsidiary');
+  const totalAssets = (bs.currentAssetsTotal||0) + (bs.nonCurrentAssetsTotal||0);
+  const totalLiab = (bs.currentLiabTotal||0) + (bs.nonCurrentLiabTotal||0);
+  const parentEquity = (bs.shareCapital||0) + (bs.capitalReserve||0) + (bs.surplusReserve||0) + (bs.unappropriatedProfit||0);
+  const totalEquity = parentEquity + (bs.minorityInterest||0);
+  const revenue = pl.revenue || 0;
+  const netProfit = pl.netProfit || 0;
+  const parentNP = pl.parentNetProfit || netProfit;
+  const minorityNP = pl.minorityProfit || 0;
+
+  const analysis = [
+    {
+      icon: '📊', title: '合并范围分析',
+      content: `本次合并报表涵盖 ${state.companies.length} 个主体，其中母公司 1 家（${state.companies.find(c=>c.type==='parent')?.name || '母公司'}），
+子公司 ${subs.length} 家：${subs.map(s=>`${s.name}（持股${s.ownership}%）`).join('、')}。
+
+${subs.some(s=>s.ownership<100) ? '存在少数股东权益和少数股东损益，需在合并报表中单独列示。' : '各子公司均为全资子公司，无少数股权。'}`
+    },
+    {
+      icon: '💰', title: '合并盈利能力分析',
+      content: `合并营业收入 ${fmt(revenue)} 元，净利润 ${fmt(netProfit)} 元。
+净利润率 = ${revenue ? ((netProfit/revenue)*100).toFixed(2) + '%' : '—'}
+
+利润归属：
+- 归属于母公司所有者的净利润：${fmt(parentNP)} 元
+- 少数股东损益：${fmt(minorityNP)} 元`
+    },
+    {
+      icon: '🏛️', title: '合并资产负债分析',
+      content: `合并资产总计 ${fmt(totalAssets)} 元，
+合并负债合计 ${fmt(totalLiab)} 元，
+所有者权益合计 ${fmt(totalEquity)} 元（其中：归属于母公司 ${fmt(parentEquity)} 元，少数股东权益 ${fmt(bs.minorityInterest||0)} 元）。
+
+资产负债率 = ${totalAssets ? ((totalLiab/totalAssets)*100).toFixed(2) + '%' : '—'}
+归属于母公司每股净资产 = ${bs.shareCapital ? (parentEquity/bs.shareCapital).toFixed(2) + '元/股' : '—'}`
+    },
+    {
+      icon: '🔄', title: '抵销分录汇总',
+      content: `本次共生成 ${state.aiExplanations.length} 笔抵销分录：
+${state.aiExplanations.map((e,i) => `${i+1}.【${e.type}】${e.detail}`).join('\n')}
+
+${state.ic.sales.length > 0 ? `内部销售抵销金额合计：¥${fmtFull(state.ic.sales.reduce((s,t)=>s+parseNum(t.amount),0))} 元` : ''}
+${state.ic.arap.length > 0 ? `内部往来抵销金额合计：¥${fmtFull(state.ic.arap.reduce((s,t)=>s+parseNum(t.amount),0))} 元` : ''}
+${state.ic.dividends.length > 0 ? `内部股利抵销金额合计：¥${fmtFull(state.ic.dividends.reduce((s,t)=>s+parseNum(t.amount),0))} 元` : ''}`
+    },
+    {
+      icon: '⚠️', title: '编制注意事项',
+      content: `1. 【投资与权益抵销】确认子公司净资产时，应以购买日公允价值为基础，注意评估增值部分的折旧/摊销调整。
+2. 【内部未实现利润】若期末存货中包含内部销售产生的利润，需全额抵销营业成本并增加存货。
+3. 【连续编制】本年度合并利润表中的"年初未分配利润"应与上年度合并资产负债表中的"未分配利润"一致。
+4. 【现金流抵销】母子公司之间的资金划拨属于内部往来，不产生现金流，在合并现金流量表中应抵销。
+5. 【外币折算】若有境外子公司，还需考虑外币报表折算差额。`
+    }
+  ];
+
+  return `
+    <div style="display:flex; flex-direction:column; gap:16px;">
+      ${analysis.map(a => `
+        <div class="expert-card" style="background:linear-gradient(135deg,var(--navy),var(--navy-light));">
+          <div style="display:flex; gap:12px; align-items:flex-start;">
+            <div style="font-size:24px;">${a.icon}</div>
+            <div>
+              <div style="font-weight:700; margin-bottom:8px; font-size:15px;">${a.title}</div>
+              <div style="font-size:13px; line-height:2; opacity:0.9; white-space:pre-line;">${a.content}</div>
+            </div>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+function exportConsolidated() {
+  const r = state.consolidated || calculateConsolidated();
+  const bs = r.bs;
+  const pl = r.pl;
+  
+  let content = `${state.groupName} 合并财务报表\n`;
+  content += `${state.reportPeriod}\n\n`;
+  content += `=== 合并资产负债表 ===\n`;
+  content += `流动资产合计: ${fmtFull(bs.currentAssetsTotal || 0)}\n`;
+  content += `非流动资产合计: ${fmtFull(bs.nonCurrentAssetsTotal || 0)}\n`;
+  content += `资产总计: ${fmtFull((bs.currentAssetsTotal||0)+(bs.nonCurrentAssetsTotal||0))}\n`;
+  content += `流动负债合计: ${fmtFull(bs.currentLiabTotal || 0)}\n`;
+  content += `非流动负债合计: ${fmtFull(bs.nonCurrentLiabTotal || 0)}\n`;
+  content += `负债合计: ${fmtFull((bs.currentLiabTotal||0)+(bs.nonCurrentLiabTotal||0))}\n`;
+  content += `归属母公司所有者权益: ${fmtFull((bs.shareCapital||0)+(bs.capitalReserve||0)+(bs.surplusReserve||0)+(bs.unappropriatedProfit||0))}\n`;
+  content += `少数股东权益: ${fmtFull(bs.minorityInterest||0)}\n`;
+  content += `所有者权益合计: ${fmtFull(((bs.shareCapital||0)+(bs.capitalReserve||0)+(bs.surplusReserve||0)+(bs.unappropriatedProfit||0))+(bs.minorityInterest||0))}\n\n`;
+  content += `=== 合并利润表 ===\n`;
+  content += `营业收入: ${fmtFull(pl.revenue||0)}\n`;
+  content += `净利润: ${fmtFull(pl.netProfit||0)}\n`;
+  content += `归属母公司净利润: ${fmtFull(pl.parentNetProfit||0)}\n`;
+  content += `少数股东损益: ${fmtFull(pl.minorityProfit||0)}\n`;
+
+  const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `${state.groupName}_合并报表_${state.reportPeriod}.txt`;
+  a.click(); URL.revokeObjectURL(url);
+  showToast('✅ 合并报表已导出');
+}
+
+// ===== STEP 5: Template Download/Upload =====
+function renderStep5() {
+  return `
+    <div class="step-card">
+      <h2 style="font-size:22px; color:var(--navy); margin-bottom:4px;">📥 Excel模板下载与上传</h2>
+      <p style="color:var(--text-muted); margin-bottom:24px;">下载标准Excel模板，填写后上传，系统将自动解析并填充数据</p>
+
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:24px;">
+        <!-- Download Template -->
+        <div style="border:1.5px solid var(--border); border-radius:12px; padding:24px;">
+          <div style="font-size:40px; text-align:center; margin-bottom:16px;">📥</div>
+          <h3 style="font-size:16px; color:var(--navy); text-align:center; margin-bottom:8px;">下载合并报表模板</h3>
+          <p style="font-size:13px; color:var(--text-muted); text-align:center; margin-bottom:20px;">
+            包含：封面、公司信息、资产负债表、利润表、现金流量表、内部交易表
+          </p>
+          <div style="display:flex; flex-direction:column; gap:8px; margin-bottom:20px;">
+            ${['📋 封面信息表', '🏢 公司结构表（含持股比例）', '📊 单体资产负债表（可多Sheet）', '📈 单体利润表', '💰 现金流量表', '🔄 内部交易记录表', '⚙️ 抵销分录表'].map(item => `
+              <div style="display:flex; align-items:center; gap:8px; font-size:13px; color:var(--text-muted);">
+                <span style="color:var(--green);">✓</span> ${item}
+              </div>
+            `).join('')}
+          </div>
+          <button class="btn-gold" style="width:100%;" onclick="downloadTemplate()">下载 Excel 模板</button>
+        </div>
+
+        <!-- Upload Template -->
+        <div style="border:1.5px solid var(--border); border-radius:12px; padding:24px;">
+          <div style="font-size:40px; text-align:center; margin-bottom:16px;">📤</div>
+          <h3 style="font-size:16px; color:var(--navy); text-align:center; margin-bottom:8px;">上传已填写的Excel</h3>
+          <p style="font-size:13px; color:var(--text-muted); text-align:center; margin-bottom:20px;">
+            上传填写好的模板文件，系统自动解析并导入数据
+          </p>
+          <div class="file-drop" onclick="document.getElementById('file-upload').click()" id="file-drop-area">
+            <div style="font-size:36px; margin-bottom:8px;">📁</div>
+            <div style="font-size:14px; font-weight:600;">点击选择Excel文件</div>
+            <div style="font-size:12px; color:var(--text-muted); margin-top:4px;">支持 .xlsx, .xls 格式</div>
+          </div>
+          <input type="file" id="file-upload" accept=".xlsx,.xls" style="display:none;" onchange="handleFileUpload(event)">
+          <div id="upload-preview" style="margin-top:16px; display:none;">
+            <div style="background:#F0FFF4; border:1px solid #86EFAC; border-radius:8px; padding:12px; font-size:13px;">
+              <div id="upload-file-name" style="font-weight:600; margin-bottom:4px;"></div>
+              <div id="upload-file-sheets" style="font-size:12px; color:var(--text-muted);"></div>
+              <button class="btn-gold" style="margin-top:12px; width:100%;" onclick="parseUploadedFile()">解析并导入数据</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Template Instructions -->
+      <div style="margin-top:24px; border:1.5px solid var(--border); border-radius:12px; padding:24px;">
+        <h3 style="font-size:15px; color:var(--navy); margin-bottom:12px;">📖 Excel模板填写说明</h3>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+          <div style="font-size:13px; line-height:2;">
+            <strong style="color:var(--gold-dark);">【公司结构表】</strong><br>
+            必填列：公司名称（全称）、公司简称、类型（母公司/子公司）、持股比例（%）<br><br>
+            <strong style="color:var(--gold-dark);">【资产负债表】</strong><br>
+            按行次填列，参考模板中的科目顺序；数字填写正数，负数加负号
+          </div>
+          <div style="font-size:13px; line-height:2;">
+            <strong style="color:var(--gold-dark);">【内部交易表】</strong><br>
+            每笔交易单独一行：销售方、采购方、交易类型（销售/往来/股利）、金额<br><br>
+            <strong style="color:var(--gold-dark);">【抵销分录表】</strong><br>
+            填写手动抵销分录：借方科目、贷方科目、金额、抵销说明
+          </div>
+        </div>
+        <div style="margin-top:16px; padding:12px; background:#FEF3C7; border-radius:8px; font-size:13px; line-height:1.8;">
+          ⚠️ <strong>重要提示：</strong>模板中黄色高亮区域为可填写单元格。填写时请勿修改表头和行次顺序，否则可能导致解析失败。
+          如有多家子公司，请在对应的N1/N2/N3... Sheet中分别填写（系统会自动识别）。
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+let uploadedFileData = null;
+
+function downloadTemplate() {
+  // Generate a JSON template that the user can fill in
+  const template = {
+    meta: {
+      version: '1.0', instructions: '请按以下格式填写数据，黄色区域为可填写项',
+      groupName: state.groupName, reportPeriod: state.reportPeriod, balanceDate: state.balanceDate,
+    },
+    companies: state.companies.map(c => ({
+      sheetName: c.type === 'parent' ? '母公司' : c.name,
+      id: c.id, name: c.name, shortName: c.shortName, type: c.type, ownership: c.ownership,
+    })),
+    balanceSheet: {
+      instructions: '期末余额/年初余额，请按以下行次顺序填写（单位：元）',
+      items: [
+        { key: 'monetaryFunds', name: '货币资金', row: 1 },
+        { key: 'accountsReceivable', name: '应收账款', row: 4 },
+        { key: 'otherReceivables', name: '其他应收款', row: 8 },
+        { key: 'prepayment', name: '预付款项', row: 5 },
+        { key: 'inventory', name: '存货', row: 9 },
+        { key: 'otherCurrentAssets', name: '其他流动资产', row: 11 },
+        { key: 'currentAssetsTotal', name: '流动资产合计', row: 12 },
+        { key: 'longTermEquity', name: '长期股权投资', row: 24 },
+        { key: 'fixedAssets', name: '固定资产', row: 33 },
+        { key: 'constructionInProgress', name: '在建工程', row: 35 },
+        { key: 'intangibleAssets', name: '无形资产', row: 41 },
+        { key: 'goodwill', name: '商誉', row: 44 },
+        { key: 'deferredTax', name: '递延所得税资产', row: 46 },
+        { key: 'nonCurrentAssetsTotal', name: '非流动资产合计', row: 49 },
+        { key: 'assetsTotal', name: '资产总计', row: 50 },
+        { key: 'shortTermBorrowing', name: '短期借款', row: 51 },
+        { key: 'accountsPayable', name: '应付账款', row: 54 },
+        { key: 'advanceReceipts', name: '预收款项', row: 55 },
+        { key: 'payrollPayable', name: '应付职工薪酬', row: 56 },
+        { key: 'taxPayable', name: '应交税费', row: 57 },
+        { key: 'otherPayables', name: '其他应付款', row: 60 },
+        { key: 'longTermBorrowing', name: '长期借款', row: 71 },
+        { key: 'liabTotal', name: '负债合计', row: 81 },
+        { key: 'shareCapital', name: '实收资本（或股本）', row: 91 },
+        { key: 'capitalReserve', name: '资本公积', row: 92 },
+        { key: 'surplusReserve', name: '盈余公积', row: 94 },
+        { key: 'unappropriatedProfit', name: '未分配利润', row: 95 },
+        { key: 'minorityInterest', name: '少数股东权益', row: 98 },
+        { key: 'equityTotal', name: '所有者权益合计', row: 99 },
+      ]
+    },
+    incomeStatement: {
+      instructions: '请按以下行次顺序填写（单位：元）',
+      items: [
+        { key: 'revenue', name: '营业收入', row: 1 },
+        { key: 'COGS', name: '营业成本', row: 2 },
+        { key: 'taxAndSurcharge', name: '营业税金及附加', row: 3 },
+        { key: 'sellingExpense', name: '销售费用', row: 4 },
+        { key: 'adminExpense', name: '管理费用', row: 5 },
+        { key: 'financeExpense', name: '财务费用', row: 6 },
+        { key: 'impairmentLoss', name: '资产减值损失', row: 7 },
+        { key: 'fairValueChange', name: '公允价值变动收益', row: 8 },
+        { key: 'investmentIncome', name: '投资收益', row: 9 },
+        { key: 'nonOperatingIncome', name: '营业外收入', row: 12 },
+        { key: 'nonOperatingExpense', name: '营业外支出', row: 13 },
+        { key: 'incomeTax', name: '所得税费用', row: 16 },
+        { key: 'netProfit', name: '净利润', row: 20 },
+        { key: 'parentNetProfit', name: '归属于母公司所有者的净利润', row: 21 },
+        { key: 'minorityProfit', name: '少数股东损益', row: 22 },
+      ]
+    },
+    intercompanyTransactions: {
+      instructions: '填写母子公司之间的内部交易记录',
+      columns: ['交易类型', '销售/采购方ID', '采购/销售方ID', '金额（元）', '说明'],
+      types: ['内部销售', '内部往来', '内部股利分配', '内部固定资产交易']
+    }
+  };
+
+  const jsonStr = JSON.stringify(template, null, 2);
+  const blob = new Blob([jsonStr], { type: 'application/json;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `合并报表模板_${state.groupName || '示例'}_v1.0.json`;
+  a.click(); URL.revokeObjectURL(url);
+  
+  // Also generate a visual HTML template
+  generateHTMLTemplate(template);
+  showToast('✅ 模板配置已下载，请同时查看HTML模板文件');
+}
+
+function generateHTMLTemplate(template) {
+  const html = `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>合并报表数据填写模板 - ${state.groupName}</title>
+<style>
+body { font-family: Arial, sans-serif; margin: 40px; background: #f4f4f4; }
+h1 { color: #1A2B4A; border-bottom: 3px solid #C8993A; padding-bottom: 10px; }
+h2 { color: #1A2B4A; margin-top: 30px; }
+table { border-collapse: collapse; width: 100%; background: white; margin: 10px 0; }
+th { background: #1A2B4A; color: white; padding: 10px; text-align: left; }
+td { padding: 8px 10px; border: 1px solid #ddd; }
+td.highlight { background: #FEF3C7; }
+td input { border: none; width: 100%; padding: 4px; font-size: 14px; }
+td input:focus { outline: 2px solid #C8993A; background: #FFFBEB; }
+.section { background: white; padding: 20px; margin: 20px 0; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,.1); }
+.btn { background: #C8993A; color: white; border: none; padding: 10px 24px; border-radius: 6px; cursor: pointer; font-size: 14px; }
+.btn:hover { background: #8B6520; }
+.instructions { background: #EEF2FF; padding: 12px; border-radius: 6px; font-size: 13px; color: #3730A3; margin-bottom: 16px; }
+</style>
+</head>
+<body>
+<h1>📊 ${state.groupName} 合并报表数据填写模板</h1>
+<div class="instructions">
+<strong>填写说明：</strong>黄色高亮单元格为可填写区域。请按要求填写数据后保存。
+报表期间：${state.reportPeriod} | 资产负债表日：${state.balanceDate}
+</div>
+
+<div class="section">
+<h2>🏢 公司结构</h2>
+<table>
+<tr><th>公司名称</th><th>简称</th><th>类型</th><th>持股比例(%)</th></tr>
+${state.companies.map(c => `
+<tr>
+<td class="highlight"><input type="text" value="${c.name}" data-company="${c.id}" data-field="name"></td>
+<td class="highlight"><input type="text" value="${c.shortName}" data-company="${c.id}" data-field="shortName"></td>
+<td>${c.type === 'parent' ? '母公司' : '子公司'}</td>
+<td class="highlight"><input type="number" value="${c.ownership}" data-company="${c.id}" data-field="ownership"></td>
+</tr>`).join('')}
+</table>
+</div>
+
+<div class="section">
+<h2>📊 资产负债表（单位：元）</h2>
+<table>
+<tr><th>科目</th>${state.companies.map(c => `<th>${c.name} 期末</th><th>${c.name} 年初</th>`).join('')}</tr>
+${[
+  ['货币资金','monetaryFunds'],['应收账款','accountsReceivable'],['其他应收款','otherReceivables'],
+  ['预付款项','prepayment'],['存货','inventory'],['流动资产合计','currentAssetsTotal'],
+  ['长期股权投资','longTermEquity'],['固定资产','fixedAssets'],['在建工程','constructionInProgress'],
+  ['无形资产','intangibleAssets'],['商誉','goodwill'],['非流动资产合计','nonCurrentAssetsTotal'],
+  ['资产总计','assetsTotal'],
+  ['短期借款','shortTermBorrowing'],['应付账款','accountsPayable'],['应付职工薪酬','payrollPayable'],
+  ['应交税费','taxPayable'],['其他应付款','otherPayables'],['流动负债合计','currentLiabTotal'],
+  ['长期借款','longTermBorrowing'],['负债合计','liabTotal'],
+  ['实收资本','shareCapital'],['资本公积','capitalReserve'],['盈余公积','surplusReserve'],
+  ['未分配利润','unappropriatedProfit'],['少数股东权益','minorityInterest'],['所有者权益合计','equityTotal'],
+].map(([name, key]) => `<tr>
+<td>${name}</td>
+${state.companies.map(c => `<td class="highlight"><input type="number" placeholder="0" data-company="${c.id}" data-table="bs" data-key="${key}"></td><td class="highlight"><input type="number" placeholder="0" data-company="${c.id}" data-table="bs" data-key="${key}" data-year="begin"></td>`).join('')}
+</tr>`).join('')}
+</table>
+</div>
+
+<div class="section">
+<h2>📈 利润表（单位：元）</h2>
+<table>
+<tr><th>科目</th>${state.companies.map(c => `<th>${c.name} 本期</th><th>${c.name} 上期</th>`).join('')}</tr>
+${[
+  ['营业收入','revenue'],['营业成本','COGS'],['营业税金及附加','taxAndSurcharge'],
+  ['销售费用','sellingExpense'],['管理费用','adminExpense'],['财务费用','financeExpense'],
+  ['资产减值损失','impairmentLoss'],['公允价值变动收益','fairValueChange'],['投资收益','investmentIncome'],
+  ['营业外收入','nonOperatingIncome'],['营业外支出','nonOperatingExpense'],
+  ['所得税费用','incomeTax'],['净利润','netProfit'],
+  ['归属母公司净利润','parentNetProfit'],['少数股东损益','minorityProfit'],
+].map(([name, key]) => `<tr>
+<td>${name}</td>
+${state.companies.map(c => `<td class="highlight"><input type="number" placeholder="0" data-company="${c.id}" data-table="pl" data-key="${key}"></td><td class="highlight"><input type="number" placeholder="0" data-company="${c.id}" data-table="pl" data-key="${key}" data-year="begin"></td>`).join('')}
+</tr>`).join('')}
+</table>
+</div>
+
+<div class="section">
+<h2>🔄 内部交易记录</h2>
+<table>
+<tr><th>交易类型</th><th>销售/提供方</th><th>采购/接受方</th><th>金额（元）</th><th>备注</th></tr>
+${[1,2,3,4,5].map((_, i) => `<tr>
+<td class="highlight"><select data-idx="${i}" data-table="ic" data-field="type" style="width:100%;border:none;padding:4px;">
+<option value="">--请选择--</option>
+<option value="内部销售">内部销售</option>
+<option value="内部往来">内部往来</option>
+<option value="内部股利">内部股利</option>
+<option value="固定资产交易">固定资产交易</option>
+</select></td>
+<td class="highlight"><select data-idx="${i}" data-table="ic" data-field="from" style="width:100%;border:none;padding:4px;">
+<option value="">--请选择--</option>
+${state.companies.map(c => `<option value="${c.id}">${c.name}</option>`).join('')}
+</select></td>
+<td class="highlight"><select data-idx="${i}" data-table="ic" data-field="to" style="width:100%;border:none;padding:4px;">
+<option value="">--请选择--</option>
+${state.companies.map(c => `<option value="${c.id}">${c.name}</option>`).join('')}
+</select></td>
+<td class="highlight"><input type="number" placeholder="0" data-idx="${i}" data-table="ic" data-field="amount"></td>
+<td class="highlight"><input type="text" placeholder="备注" data-idx="${i}" data-table="ic" data-field="note"></td>
+</tr>`).join('')}
+</table>
+<div style="margin-top:12px; text-align:center;">
+<button class="btn" onclick="exportData()">📤 导出已填写数据（JSON）</button>
+</div>
+</div>
+
+<script>
+function exportData() {
+  const data = { companies: [], bs: {}, pl: {}, ic: { sales: [], arap: [], dividends: [] }, meta: { groupName: '${state.groupName}', reportPeriod: '${state.reportPeriod}' } };
+  
+  // Export companies
+  document.querySelectorAll('input[data-company][data-field]').forEach(el => {
+    const id = el.dataset.company, field = el.dataset.field;
+    let co = data.companies.find(c => c.id === id);
+    if (!co) { co = { id }; data.companies.push(co); }
+    if (el.type === 'number') co[field] = parseFloat(el.value) || 0;
+    else co[field] = el.value;
+  });
+  
+  // Export BS & PL
+  ['bs', 'pl'].forEach(table => {
+    data[table] = {};
+    document.querySelectorAll('input[data-table="' + table + '"]').forEach(el => {
+      const cid = el.dataset.company, key = el.dataset.key;
+      if (!data[table][cid]) data[table][cid] = {};
+      data[table][cid][key] = parseFloat(el.value) || 0;
+    });
+  });
+  
+  // Export IC
+  document.querySelectorAll('select[data-table="ic"]').forEach(el => {
+    const idx = parseInt(el.dataset.idx), field = el.dataset.field;
+    if (!data.ic._entries) data.ic._entries = [{},{},{},{},{}];
+    if (el.value) data.ic._entries[idx][field] = el.value;
+  });
+  document.querySelectorAll('input[data-table="ic"]').forEach(el => {
+    const idx = parseInt(el.dataset.idx), field = el.dataset.field;
+    if (!data.ic._entries) data.ic._entries = [{},{},{},{},{}];
+    if (field === 'amount') data.ic._entries[idx].amount = parseFloat(el.value) || 0;
+    else data.ic._entries[idx][field] = el.value;
+  });
+  
+  const json = JSON.stringify(data, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = '合并报表数据_${state.groupName || "填写"}_${new Date().toISOString().slice(0,10)}.json';
+  a.click();
+  alert('数据已导出！可将JSON文件上传到合并报表助手系统进行导入。');
+}
+<\/script>
+</body></html>`;
+
+  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `合并报表数据填写模板_${state.groupName || '示例'}.html`;
+  a.click(); URL.revokeObjectURL(url);
+}
+
+function handleFileUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  
+  const dropArea = document.getElementById('file-drop-area');
+  if (dropArea) dropArea.style.borderColor = '#C8993A';
+  
+  const preview = document.getElementById('upload-preview');
+  const nameEl = document.getElementById('upload-file-name');
+  const sheetsEl = document.getElementById('upload-file-sheets');
+  
+  if (nameEl) nameEl.textContent = `📄 ${file.name}`;
+  if (sheetsEl) sheetsEl.textContent = '已选择文件，正在读取...';
+  if (preview) preview.style.display = 'block';
+  
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const data = JSON.parse(e.target.result);
+      uploadedFileData = data;
+      if (sheetsEl) {
+        const keys = Object.keys(data).filter(k => k !== 'meta' && k !== 'companies');
+        sheetsEl.textContent = `检测到数据：公司${data.companies?.length || 0}个，报表类型：${keys.join('、')}`;
+      }
+      showToast('✅ 文件读取成功，请点击"解析并导入数据"');
+    } catch (err) {
+      if (sheetsEl) sheetsEl.textContent = `⚠️ 非标准模板格式，但仍尝试导入（${err.message}）`;
+      uploadedFileData = e.target.result;
+    }
+  };
+  reader.readAsText(file);
+}
+
+function parseUploadedFile() {
+  if (!uploadedFileData) { showToast('请先选择文件'); return; }
+  
+  try {
+    const data = typeof uploadedFileData === 'string' ? JSON.parse(uploadedFileData) : uploadedFileData;
+    
+    // Import companies
+    if (data.companies) {
+      data.companies.forEach(c => {
+        const existing = state.companies.find(x => x.id === c.id);
+        if (existing) {
+          existing.name = c.name || existing.name;
+          existing.shortName = c.shortName || existing.shortName;
+          existing.ownership = c.ownership ?? existing.ownership;
+        }
+      });
+    }
+    
+    // Import BS
+    if (data.bs) {
+      Object.keys(data.bs).forEach(cid => {
+        if (!state.bs[cid]) state.bs[cid] = {};
+        Object.keys(data.bs[cid]).forEach(k => {
+          state.bs[cid][k] = data.bs[cid][k];
+        });
+      });
+    }
+    
+    // Import PL
+    if (data.pl) {
+      Object.keys(data.pl).forEach(cid => {
+        if (!state.pl[cid]) state.pl[cid] = {};
+        Object.keys(data.pl[cid]).forEach(k => {
+          state.pl[cid][k] = data.pl[cid][k];
+        });
+      });
+    }
+    
+    // Import IC transactions
+    if (data.ic?.sales) state.ic.sales = data.ic.sales;
+    if (data.ic?.arap) state.ic.arap = data.ic.arap;
+    if (data.ic?.dividends) state.ic.dividends = data.ic.dividends;
+    
+    // Import meta
+    if (data.meta) {
+      state.groupName = data.meta.groupName || state.groupName;
+      state.reportPeriod = data.meta.reportPeriod || state.reportPeriod;
+    }
+    
+    render();
+    showToast('✅ 数据导入成功！请查看已填充的数据');
+    goToStep(1);
+  } catch (err) {
+    showToast('❌ 导入失败：' + err.message);
+  }
+}
+
+// ===== MAIN RENDER =====
+function render() {
+  renderNav();
+  const main = document.getElementById('main-content');
+  switch (state.currentStep) {
+    case 0: main.innerHTML = renderStep0(); break;
+    case 1: main.innerHTML = renderStep1(); break;
+    case 2: main.innerHTML = renderStep2(); break;
+    case 3: main.innerHTML = renderStep3(); break;
+    case 4: main.innerHTML = renderStep4(); break;
+    case 5: main.innerHTML = renderStep5(); break;
+  }
+}
+
+function goToStep(n) {
+  state.currentStep = n;
+  render();
+}
+
+// ===== INIT =====
+initStatements();
+state._activeCompany = state.companies[0]?.id;
+state._statementTab = 'bs';
+state._icOpen = 'ic-sales';
+state._resultTab = 'bs';
+render();
+</script>
+</body>
+</html>
